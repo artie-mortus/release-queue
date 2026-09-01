@@ -1,0 +1,1834 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TIME BRIDGE // GTA VI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d080b'/%3E%3Cpath d='M5 22c5.5 0 5.5-11 11-11s5.5 11 11 11' stroke='%23c938a1' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Cpath d='M5 22v4M27 22v4' stroke='%23b1a020' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@600;800;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* tastemaker · page: app-shell (single-screen instrument, no macrostructure rotation)
+   mood: playful · palette: generate_palette.py --mood playful --mode dark --seed 7 (triadic, base hue 341.2)
+   type: Urbanist + Open Sans · icons: Phosphor (ph) via Iconify · motion: dependency-free app-shell track
+   contrast: check_contrast.py --matrix, 10 roles — every shipped pairing text-safe or UI-safe
+   critique: ShowTell 5 · Phil 5 · Hier 5 · Spec 5 · Restr 4 · Var 5 */
+
+:root{
+  /* colour — generated, contrast-solved, do not hand-edit without re-running the matrix */
+  --bg:#0d080b; --surface:#191316; --raised:#221a1e; --border:#3a2f36;
+  --text:#fbedf5; --muted:#a89aa4;
+  --primary:#c938a1; --on-primary:#ffffff; --secondary:#451d38; --accent:#b1a020;
+  --pos:#4ec27a; --neg:#ff6b81;
+  --seg-a:var(--primary);
+  --seg-b:color-mix(in srgb, var(--primary) 58%, var(--bg));
+  /* YouTube is a different kind of time, so it gets a different hue family. */
+  --seg-yt:color-mix(in srgb, var(--accent) 55%, var(--bg));
+  --pos-wash:color-mix(in srgb, var(--pos) 26%, transparent);
+  --accent-wash:color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus:var(--accent);
+
+  /* spacing scale — named steps only, no improvised values */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px; --s12:48px;
+  --r-sm:6px; --r-md:10px; --r-lg:16px;
+
+  /* motion */
+  --dur-fast:120ms; --dur:200ms; --dur-slow:320ms;
+  --ease:cubic-bezier(.2,.6,.2,1);
+
+  --font-display:'Urbanist',ui-sans-serif,system-ui,'Segoe UI',sans-serif;
+  --font-body:'Open Sans',ui-sans-serif,system-ui,'Segoe UI',sans-serif;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+/* .gap sets display:flex, which outranks the UA's [hidden] rule and left the
+   empty verdict card showing a stray "— days left to play". Settle it once, globally. */
+[hidden]{display:none!important}
+html,body{overflow-x:clip}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.5 var(--font-body);
+  -webkit-font-smoothing:antialiased;
+}
+main{max-width:1160px;margin:auto;padding:var(--s8) var(--s6) var(--s12)}
+h1,h2,h3{font-family:var(--font-display);font-style:normal;margin:0}
+.icon{width:1em;height:1em;flex:none;fill:currentColor;display:block}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ---- masthead ---------------------------------------------------------- */
+.masthead{display:flex;justify-content:space-between;align-items:center;gap:var(--s6);
+  padding-bottom:var(--s5);border-bottom:1px solid var(--border);margin-bottom:var(--s8)}
+.brand{min-width:0}
+.brand h1{font-size:19px;font-weight:900;letter-spacing:.02em;line-height:1.1;white-space:nowrap}
+.brand p{margin:2px 0 0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.target{display:flex;align-items:center;gap:var(--s3);color:var(--muted);font-size:12px;text-align:right}
+.target .icon{width:19px;height:19px;color:var(--accent)}
+.target b{display:block;color:var(--text);font-family:var(--font-display);font-size:15px;font-weight:800;letter-spacing:.04em}
+
+/* ---- readout: the one thing you open this to check --------------------- */
+.readout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:var(--s5);margin-bottom:var(--s5);align-items:center}
+.clock{display:flex;align-items:flex-end;gap:var(--s5)}
+.unit{display:flex;flex-direction:column;min-width:0}
+.unit b{
+  font-family:var(--font-display);font-weight:900;letter-spacing:-.05em;line-height:1;
+  font-size:clamp(52px,8.2vw,104px);font-variant-numeric:tabular-nums;
+  min-width:2.05ch;text-align:center;display:block;
+}
+.unit span{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:var(--s2)}
+/* the deliberate break: seconds ride small and off-baseline against the big units */
+.unit--sec b{font-size:clamp(20px,2.6vw,30px);color:var(--accent);min-width:2.4ch}
+.unit--sec{align-self:flex-start;padding-top:var(--s2)}
+.unit--sec span{color:var(--accent)}
+
+.verdict{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--muted);
+  border-radius:var(--r-md);padding:var(--s5);display:flex;flex-direction:column;justify-content:center;gap:var(--s2)}
+.verdict .label{margin:0;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.verdict .signal{margin:0;font-family:var(--font-display);font-size:clamp(22px,2.6vw,29px);font-weight:900;
+  line-height:1.05;letter-spacing:-.02em}
+.verdict p:last-child{margin:0;color:var(--muted);font-size:13px}
+.gap{display:flex;align-items:baseline;gap:var(--s3);margin-top:var(--s4);
+  padding-top:var(--s4);border-top:1px solid var(--border)}
+.gap>b{font-family:var(--font-display);font-size:clamp(34px,4vw,44px);font-weight:900;
+  line-height:.9;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.gap span{color:var(--muted);font-size:12.5px;line-height:1.4}
+.gap span b{color:var(--text);font-weight:700}
+.verdict[data-state="ahead"]{border-left-color:var(--neg)}
+.verdict[data-state="ahead"] .signal,.verdict[data-state="ahead"] .gap>b{color:var(--neg)}
+.verdict[data-state="tie"]{border-left-color:var(--accent)}
+.verdict[data-state="tie"] .signal,.verdict[data-state="tie"] .gap>b{color:var(--accent)}
+.verdict[data-state="behind"]{border-left-color:var(--pos)}
+.verdict[data-state="behind"] .signal,.verdict[data-state="behind"] .gap>b{color:var(--pos)}
+.verdict[data-state="shipped"]{border-left-color:var(--primary)}
+
+/* ---- the bridge -------------------------------------------------------- */
+.bridge-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:var(--s6);margin-bottom:var(--s5);overflow:hidden}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s4);margin-bottom:var(--s6);flex-wrap:wrap}
+.panel-head h2{font-size:16px;font-weight:800;letter-spacing:.01em}
+.panel-head p{margin:0;color:var(--muted);font-size:12.5px}
+.bridge{position:relative;padding-top:var(--s6)}
+.track{position:relative;height:44px;background:var(--raised);border-radius:var(--r-sm);overflow:hidden}
+.seg{position:absolute;top:0;bottom:0;background:var(--seg-a);display:flex;align-items:center;
+  padding:0 var(--s3);overflow:hidden;border-right:2px solid var(--surface);
+  transform-origin:left center;transition:opacity var(--dur) var(--ease)}
+.seg:nth-child(even){background:var(--seg-b)}
+.seg span{font-size:11.5px;font-weight:700;color:var(--on-primary);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+/* Beats .seg:nth-child(even) on specificity, so the block keeps its colour
+   wherever it lands in the track. */
+.seg.seg--yt{background:var(--seg-yt);background-image:repeating-linear-gradient(135deg,
+  rgba(255,255,255,.07) 0 5px, transparent 5px 10px)}
+.seg.seg--yt span{color:var(--text)}
+@media (hover:hover){.seg:hover{opacity:.82}}
+.track-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:12.5px}
+/* The stretch past the release marker is the good outcome, so it reads as a
+   highlight rather than a dead zone: no grayscale, only a slight lift. */
+.overrun{position:absolute;top:0;bottom:0;right:0;background:var(--pos-wash);
+  backdrop-filter:brightness(1.06);pointer-events:none}
+.markers{position:absolute;left:0;right:0;top:var(--s6);height:44px;pointer-events:none}
+.marker{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:2}
+.marker .flag{position:absolute;top:-26px;left:50%;transform:translateX(-50%)}
+.marker--end .flag{left:auto;right:0;transform:none}
+.marker--start .flag{left:0;transform:none}
+.marker .flag{
+  display:flex;align-items:center;gap:var(--s1);color:var(--accent);
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+.marker .flag .icon{width:14px;height:14px}
+.axis{position:relative;height:var(--s6);margin-top:var(--s2)}
+.tick{position:absolute;top:0;padding-left:var(--s2);border-left:1px solid var(--border);
+  color:var(--muted);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;height:var(--s5)}
+.tick--now{border-left-color:var(--text);color:var(--text)}
+.bridge-scale{display:flex;justify-content:space-between;gap:var(--s4);margin-top:var(--s4);
+  padding-top:var(--s4);border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+.bridge-scale b{color:var(--text)}
+
+/* ---- work area --------------------------------------------------------- */
+.work{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:var(--s5);align-items:stretch}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--s6)}
+.panel h2{font-size:16px;font-weight:800;margin-bottom:var(--s1)}
+.panel .sub{color:var(--muted);font-size:12.5px;margin:0 0 var(--s5)}
+
+/* form controls */
+.add{display:grid;grid-template-columns:minmax(0,1fr) 92px 120px auto;gap:var(--s2);position:relative}
+input,select,button{font:inherit;font-size:14px;border-radius:var(--r-sm);border:1px solid var(--border);
+  background:var(--raised);color:var(--text);padding:var(--s3);height:42px}
+input::placeholder{color:var(--muted)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button{cursor:pointer;font-weight:700;font-size:13px;
+  transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+@media (hover:hover){button:not(:disabled):hover{border-color:var(--accent);color:var(--accent)}}
+button:not(:disabled):active{transform:translateY(1px)}
+button.primary{background:var(--primary);color:var(--on-primary);border-color:var(--primary);
+  display:inline-flex;align-items:center;gap:var(--s1);padding-inline:var(--s4)}
+@media (hover:hover){button.primary:not(:disabled):hover{background:var(--secondary);border-color:var(--primary);color:var(--on-primary)}}
+button:disabled{opacity:.45;cursor:not-allowed}
+.search-field{position:relative;display:flex;align-items:center;min-width:0}
+.search-field .icon{position:absolute;left:var(--s3);width:16px;height:16px;color:var(--muted);pointer-events:none}
+.search-field input{padding-left:var(--s8);width:100%}
+
+/* suggestions */
+.suggestions{position:absolute;z-index:5;left:0;right:0;top:48px;background:var(--raised);
+  border:1px solid var(--accent);border-radius:var(--r-md);overflow:hidden;box-shadow:0 18px 40px #00000080}
+.suggestion{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);width:100%;
+  text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--border);background:transparent;
+  height:auto;padding:var(--s3) var(--s4)}
+.suggestion:last-child{border-bottom:0}
+@media (hover:hover){.suggestion:hover{background:var(--secondary);color:var(--text)}}
+.suggestion.is-active{background:var(--secondary);color:var(--text);box-shadow:inset 2px 0 0 var(--accent)}
+.suggestion b{display:block;font-weight:600;font-size:13.5px}
+.suggestion small,.suggestion .tail{color:var(--muted);font-size:11.5px}
+.suggestion .body{display:flex;align-items:center;gap:var(--s3);min-width:0}
+.suggestion .icon{width:17px;height:17px;color:var(--accent)}
+.sugg-note{padding:var(--s3) var(--s4);color:var(--muted);font-size:12px;display:flex;align-items:center;gap:var(--s2)}
+.skeleton{height:11px;border-radius:99px;background:var(--border);opacity:.55}
+.skeleton-row{padding:var(--s3) var(--s4);border-bottom:1px solid var(--border);display:grid;gap:var(--s2)}
+.skeleton-row:last-child{border-bottom:0}
+
+.persist{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+.persist-actions{display:flex;gap:var(--s2)}
+.persist button{font-size:12px;padding:var(--s2) var(--s3);height:auto}
+.estimate-note{margin:var(--s4) 0 0;padding:var(--s3) var(--s4);border-radius:var(--r-sm);background:var(--accent-wash);border-left:2px solid var(--accent);color:var(--text);font-size:12.5px}
+.examples{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s4)}
+.examples button{font-size:12px;padding:var(--s2) var(--s3);height:auto;display:inline-flex;align-items:center;gap:var(--s1)}
+.examples .icon{width:14px;height:14px;color:var(--muted)}
+
+/* queue rows */
+.queue-head{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);flex-wrap:wrap;
+  margin-top:var(--s5);padding:var(--s3) 0 var(--s2);border-top:1px solid var(--border);
+  color:var(--muted);font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+.queue-head span:first-child{color:var(--text);font-weight:700}
+.queue{border-top:1px solid var(--border)}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:var(--s3);
+  align-items:center;padding:var(--s3) 0;border-bottom:1px solid var(--border);position:relative}
+.item-order{display:flex;align-items:center;gap:var(--s2)}
+.item-order .kind{width:19px;height:19px;color:var(--muted)}
+.position{width:18px;color:var(--muted);font-family:var(--font-display);font-size:11px;font-weight:800;
+  font-variant-numeric:tabular-nums;text-align:right}
+.item b{font-weight:600;font-size:14px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;
+  overflow:hidden;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.item .wk{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+.hours{display:flex;align-items:center;gap:var(--s1);font-weight:700}
+.hours input{width:68px;height:34px;padding:var(--s1) var(--s1);text-align:right;font-weight:700;
+  font-variant-numeric:tabular-nums;border-color:transparent;background:transparent;
+  transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
+@media (hover:hover){.hours input:hover{border-color:var(--border);background:var(--raised)}}
+.hours input:focus-visible{border-color:var(--accent);background:var(--raised)}
+.drag-handle,.remove{background:transparent;border-color:transparent;color:var(--muted);padding:var(--s2);height:34px;
+  min-width:34px;display:flex;align-items:center;justify-content:center}
+.drag-handle{cursor:grab;touch-action:none}
+.drag-handle:not(:disabled):active{cursor:grabbing;transform:none}
+.drag-handle .icon{width:17px;height:17px}
+.remove .icon{width:15px;height:15px}
+.queue.is-sorting{user-select:none}
+.queue.is-sorting .item{animation:none}
+.item.is-dragging{background:var(--accent-wash);outline:1px solid var(--accent);outline-offset:-1px}
+@media (hover:hover){
+  .drag-handle:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-wash)}
+  .remove:hover{color:var(--neg);border-color:var(--neg)}
+}
+/* The YouTube row is an item you cannot order, remove or edit: its hours are
+   an output. The slots keep it on the same grid as the rows above it. */
+.item--yt{background:linear-gradient(90deg,var(--accent-wash),transparent 60%)}
+.item--yt .slot{display:block;min-width:34px;height:34px}
+.item--yt .position{color:var(--accent)}
+.item--yt .kind{color:var(--accent)}
+.item--yt .hours{font-weight:700}
+.item--yt .hours b{display:inline-block;width:68px;padding-right:var(--s1);text-align:right;
+  font-variant-numeric:tabular-nums}
+.empty{padding:var(--s8) 0;text-align:center;color:var(--muted);font-size:13px}
+.empty svg{width:88px;height:56px;margin-bottom:var(--s3);opacity:.75}
+
+/* pace panel */
+.start-field{margin-bottom:var(--s5)}
+.start-row{display:flex;gap:var(--s2)}
+.start-row input{flex:1;min-width:0}
+.start-row button{white-space:nowrap}
+.lead-note{margin:calc(var(--s5) * -1) 0 var(--s5);padding:var(--s3) var(--s4);border-radius:var(--r-sm);
+  background:var(--accent-wash);border-left:2px solid var(--accent);color:var(--text);font-size:12.5px}
+.lead{position:absolute;top:0;bottom:0;left:0;background:repeating-linear-gradient(135deg,
+  var(--raised) 0 6px, var(--surface) 6px 12px);border-right:1px solid var(--border);
+  display:flex;align-items:center;padding:0 var(--s3);overflow:hidden}
+.lead span{font-size:11px;color:var(--muted);white-space:nowrap}
+.schedule{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:var(--s3);align-items:end}
+.field{display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+.field label,.pace-label{color:var(--muted);font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+.field select{width:100%}
+.schedule .to{color:var(--muted);padding-bottom:var(--s3);font-size:13px}
+.pace{margin-top:var(--s6)}
+.pace-top{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);margin-bottom:var(--s3)}
+.pace-top output{font-family:var(--font-display);font-size:26px;font-weight:900;color:var(--accent);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+input[type=range]{width:100%;padding:0;height:22px;border:0;background:transparent;accent-color:var(--primary)}
+input[type=range]:focus-visible{outline:2px solid var(--focus);outline-offset:4px}
+.note{margin:var(--s4) 0 0;color:var(--muted);font-size:12.5px;line-height:1.55}
+.note b{color:var(--text);font-variant-numeric:tabular-nums}
+.note-icon{display:inline-block;vertical-align:-2px;width:14px;height:14px;color:var(--muted)}
+.yt,.job{margin-top:var(--s6);padding-top:var(--s5);border-top:1px solid var(--border)}
+.yt-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:var(--s3);align-items:end}
+.yt-row input{width:100%}
+.unit-toggle{display:grid;grid-template-columns:1fr 1fr;gap:var(--s1);padding:3px;
+  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg)}
+.unit-toggle button{border:0;background:transparent;color:var(--muted);height:30px;padding:0;
+  font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:4px}
+.unit-toggle button[aria-checked="true"]{background:var(--primary);color:var(--on-primary)}
+@media (hover:hover){.unit-toggle button[aria-checked="false"]:hover{color:var(--text);background:var(--raised)}}
+.job-top{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);margin-bottom:var(--s3)}
+.job-top output{font-family:var(--font-display);font-size:17px;font-weight:800;color:var(--accent);
+  font-variant-numeric:tabular-nums;text-align:right}
+.job-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:var(--s3)}
+.job-row input{width:100%}
+.marker--job{background:var(--muted);z-index:1}
+.marker--job .flag{color:var(--muted)}
+.metrics{margin-top:var(--s6);border-top:1px solid var(--border)}
+.metric{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s4);
+  padding:var(--s3) 0;border-bottom:1px solid var(--border)}
+.metric:last-child{border-bottom:0}
+.metric span{color:var(--muted);font-size:13px}
+.metric b{font-family:var(--font-display);font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+.metric b[data-tone="pos"]{color:var(--pos)}
+.metric b[data-tone="neg"]{color:var(--neg)}
+.metric b[data-tone="tie"]{color:var(--accent)}
+
+.foot{color:var(--muted);font-size:12px;margin:var(--s8) 0 0;padding-top:var(--s5);
+  border-top:1px solid var(--border);max-width:74ch}
+
+/* ---- motion: app-shell track (entrance, state change), reduced-motion safe */
+[data-reveal]{opacity:0;transform:translateY(10px)}
+.is-revealed[data-reveal],.is-revealed [data-reveal]{opacity:1;transform:none;
+  transition:opacity var(--dur-slow) var(--ease),transform var(--dur-slow) var(--ease)}
+main>[data-reveal]:nth-child(2){transition-delay:70ms}
+main>[data-reveal]:nth-child(3){transition-delay:140ms}
+.work>[data-reveal]:nth-child(1){transition-delay:210ms}
+.work>[data-reveal]:nth-child(2){transition-delay:280ms}
+@keyframes wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.track{animation:wipe var(--dur-slow) var(--ease) both}
+@keyframes row-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.item{animation:row-in var(--dur) var(--ease) both}
+@keyframes flash{from{opacity:.35}to{opacity:1}}
+.flash{animation:flash var(--dur) var(--ease)}
+@media (prefers-reduced-motion:reduce){
+  [data-reveal]{opacity:0;transform:none}
+  .is-revealed[data-reveal],.is-revealed [data-reveal]{transition:opacity 150ms linear}
+  .track,.item,.flash{animation-duration:150ms;animation-name:fade-only}
+  @keyframes fade-only{from{opacity:.6}to{opacity:1}}
+  button:not(:disabled):active{transform:none}
+  *{scroll-behavior:auto}
+}
+
+/* ---- responsive -------------------------------------------------------- */
+@media (max-width:900px){
+  .readout,.work{grid-template-columns:minmax(0,1fr)}
+  .add{grid-template-columns:minmax(0,1fr) 1fr}
+  .search-field{grid-column:1/-1}
+  .add .primary{grid-column:1/-1;justify-content:center}
+  .suggestions{top:96px}
+}
+@media (max-width:560px){
+  /* touch targets clear 44px where a finger is doing the pointing */
+  .examples button{min-height:44px}
+  .drag-handle,.remove{height:44px;min-width:44px}
+  .hours input{height:44px}
+  main{padding:var(--s6) var(--s4) var(--s10)}
+  .masthead{flex-direction:column;align-items:flex-start;gap:var(--s4)}
+  .target{text-align:left}
+  .item{grid-template-columns:auto minmax(0,1fr) auto auto}
+  .item .wk{display:none}
+  .item b{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;
+    -webkit-line-clamp:2;line-clamp:2}
+  .item small{-webkit-line-clamp:3;line-clamp:3}
+  .schedule{grid-template-columns:minmax(0,1fr)}
+  .schedule .to{display:none}
+}
+</style>
+</head>
+<body>
+<!-- Icons: Phosphor (ph) via the Iconify API. MIT licensed, no attribution required on the page. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-book" viewBox="0 0 256 256"><path fill="currentColor" d="M208 24H72a32 32 0 0 0-32 32v168a8 8 0 0 0 8 8h144a8 8 0 0 0 0-16H56a16 16 0 0 1 16-16h136a8 8 0 0 0 8-8V32a8 8 0 0 0-8-8m-8 160H72a31.8 31.8 0 0 0-16 4.29V56a16 16 0 0 1 16-16h128Z"/></symbol>
+<symbol id="i-film-reel" viewBox="0 0 256 256"><path fill="currentColor" d="M232 216h-48.64A103.95 103.95 0 1 0 128 232h104a8 8 0 0 0 0-16M40 128a88 88 0 1 1 88 88a88.1 88.1 0 0 1-88-88m88-24a24 24 0 1 0-24-24a24 24 0 0 0 24 24m0-32a8 8 0 1 1-8 8a8 8 0 0 1 8-8m24 104a24 24 0 1 0-24 24a24 24 0 0 0 24-24m-32 0a8 8 0 1 1 8 8a8 8 0 0 1-8-8m56-24a24 24 0 1 0-24-24a24 24 0 0 0 24 24m0-32a8 8 0 1 1-8 8a8 8 0 0 1 8-8m-96-16a24 24 0 1 0 24 24a24 24 0 0 0-24-24m0 32a8 8 0 1 1 8-8a8 8 0 0 1-8 8"/></symbol>
+<symbol id="i-flag-checkered" viewBox="0 0 256 256"><path fill="currentColor" d="M227.32 48.75a8 8 0 0 0-8.56 1.25c-28 24.22-51.72 12.48-79.21-1.13C111.07 34.76 78.78 18.79 42.76 50A8 8 0 0 0 40 56v168a8 8 0 0 0 16 0v-44.23c26.79-21.16 49.87-9.75 76.45 3.41c28.49 14.09 60.77 30.06 96.79-1.13a8 8 0 0 0 2.76-6V56a8 8 0 0 0-4.68-7.25M216 71.6v40.65c-14 11.06-27 13.22-40 10.88V79.34a60.05 60.05 0 0 0 40-7.74m-56 3.76v43c-6.66-2.67-13.43-6-20.45-9.48c-8.82-4.37-18-8.91-27.55-12.18v-43c6.66 2.66 13.43 6 20.45 9.48c8.82 4.37 18.01 8.91 27.55 12.18M96 48.91v43.78a60.06 60.06 0 0 0-40 7.75V59.78c14-11.06 27-13.21 40-10.87M86.58 152A60.06 60.06 0 0 0 56 160.43v-40.65c14-11.06 27-13.22 40-10.88v43.8a65.6 65.6 0 0 0-9.42-.7m25.42 4.67v-43c6.66 2.66 13.43 6 20.45 9.48c8.82 4.37 18 8.9 27.55 12.17v43c-6.66-2.67-13.43-6-20.45-9.48c-8.82-4.37-18.01-8.9-27.55-12.17m64 26.45v-43.8a65.6 65.6 0 0 0 9.42.72a60.1 60.1 0 0 0 30.58-8.47v40.68c-14 11.06-27 13.21-40 10.87"/></symbol>
+<symbol id="i-game-controller" viewBox="0 0 256 256"><path fill="currentColor" d="M176 112h-24a8 8 0 0 1 0-16h24a8 8 0 0 1 0 16m-72-16h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16m137.48 104.65a36 36 0 0 1-54.94 4.81c-.12-.12-.24-.24-.35-.37L146.48 160h-37l-39.67 45.09l-.35.37A36.08 36.08 0 0 1 44 216a36 36 0 0 1-35.44-42.25a.7.7 0 0 1 0-.14l16.37-84.09A59.88 59.88 0 0 1 83.89 40H172a60.08 60.08 0 0 1 59 49.25v.18l16.37 84.17a.7.7 0 0 1 0 .14a35.74 35.74 0 0 1-5.89 26.91M172 144a44 44 0 0 0 0-88H83.89a43.9 43.9 0 0 0-43.21 36.37v.13L24.3 176.59A20 20 0 0 0 58 194.3l41.92-47.59a8 8 0 0 1 6-2.71Zm59.7 32.59l-8.74-45A60 60 0 0 1 172 160h-4.2l30.2 34.31a20.09 20.09 0 0 0 17.46 5.39a20 20 0 0 0 16.23-23.11Z"/></symbol>
+<symbol id="i-magnifying-glass" viewBox="0 0 256 256"><path fill="currentColor" d="m229.66 218.34l-50.07-50.06a88.11 88.11 0 1 0-11.31 11.31l50.06 50.07a8 8 0 0 0 11.32-11.32M40 112a72 72 0 1 1 72 72a72.08 72.08 0 0 1-72-72"/></symbol>
+<symbol id="i-moon" viewBox="0 0 256 256"><path fill="currentColor" d="M233.54 142.23a8 8 0 0 0-8-2a88.08 88.08 0 0 1-109.8-109.8a8 8 0 0 0-10-10a104.84 104.84 0 0 0-52.91 37A104 104 0 0 0 136 224a103.1 103.1 0 0 0 62.52-20.88a104.84 104.84 0 0 0 37-52.91a8 8 0 0 0-1.98-7.98m-44.64 48.11A88 88 0 0 1 65.66 67.11a89 89 0 0 1 31.4-26A106 106 0 0 0 96 56a104.11 104.11 0 0 0 104 104a106 106 0 0 0 14.92-1.06a89 89 0 0 1-26.02 31.4"/></symbol>
+<symbol id="i-plus" viewBox="0 0 256 256"><path fill="currentColor" d="M224 128a8 8 0 0 1-8 8h-80v80a8 8 0 0 1-16 0v-80H40a8 8 0 0 1 0-16h80V40a8 8 0 0 1 16 0v80h80a8 8 0 0 1 8 8"/></symbol>
+<symbol id="i-television" viewBox="0 0 256 256"><path fill="currentColor" d="M216 64h-68.69l34.35-34.34a8 8 0 1 0-11.32-11.32L128 60.69L85.66 18.34a8 8 0 0 0-11.32 11.32L108.69 64H40a16 16 0 0 0-16 16v120a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16M40 80h104v120H40Zm176 120h-56V80h56zm-16-84a12 12 0 1 1-12-12a12 12 0 0 1 12 12m0 48a12 12 0 1 1-12-12a12 12 0 0 1 12 12"/></symbol>
+<symbol id="i-dots-six-vertical" viewBox="0 0 256 256">
+  <circle cx="96" cy="64" r="12" fill="currentColor"/><circle cx="160" cy="64" r="12" fill="currentColor"/>
+  <circle cx="96" cy="128" r="12" fill="currentColor"/><circle cx="160" cy="128" r="12" fill="currentColor"/>
+  <circle cx="96" cy="192" r="12" fill="currentColor"/><circle cx="160" cy="192" r="12" fill="currentColor"/>
+</symbol>
+<symbol id="i-x" viewBox="0 0 256 256"><path fill="currentColor" d="M205.66 194.34a8 8 0 0 1-11.32 11.32L128 139.31l-66.34 66.35a8 8 0 0 1-11.32-11.32L116.69 128L50.34 61.66a8 8 0 0 1 11.32-11.32L128 116.69l66.34-66.35a8 8 0 0 1 11.32 11.32L139.31 128Z"/></symbol>
+<symbol id="i-youtube-logo" viewBox="0 0 256 256"><path fill="currentColor" d="M164.44 121.34l-48-32A8 8 0 0 0 104 96v64a8 8 0 0 0 12.44 6.66l48-32a8 8 0 0 0 0-13.32M120 145.05v-34.1L145.58 128Zm114.33-75.53a24 24 0 0 0-14.49-16.4C185.56 39.88 131 40 128 40s-57.56-.12-91.84 13.12a24 24 0 0 0-14.49 16.4C19.08 79.5 16 97.74 16 128s3.08 48.5 5.67 58.48a24 24 0 0 0 14.49 16.41C69 215.56 120.4 216 127.34 216h1.32c6.94 0 58.37-.44 91.18-13.11a24 24 0 0 0 14.49-16.41c2.59-10 5.67-28.22 5.67-58.48s-3.08-48.5-5.67-58.48m-15.49 113a8 8 0 0 1-4.77 5.49c-31.65 12.22-85.48 12-86 12H128c-.54 0-54.33.2-86-12a8 8 0 0 1-4.77-5.49C34.8 173.39 32 156.57 32 128s2.8-45.39 5.16-54.47A8 8 0 0 1 41.93 68c30.52-11.79 81.66-12 85.85-12h.27c.54 0 54.38-.18 86 12a8 8 0 0 1 4.77 5.49C221.2 82.61 224 99.43 224 128s-2.8 45.39-5.16 54.47"/></symbol>
+<symbol id="i-microphone-stage" viewBox="0 0 256 256"><path fill="currentColor" d="M188 24a76.08 76.08 0 0 0-76 76a75.2 75.2 0 0 0 5.6 28.62l-83.2 83.2a20 20 0 0 0 28.28 28.28l83.2-83.2A75.2 75.2 0 0 0 188 152a76 76 0 0 0 0-152m0 136a59.6 59.6 0 0 1-27.4-6.66a8 8 0 0 0-9.32 1.43l-88 88a4 4 0 0 1-5.66-5.66l88-88a8 8 0 0 0 1.43-9.32A60 60 0 1 1 188 160"/><path fill="currentColor" d="M188 56a44 44 0 1 0 44 44a44.05 44.05 0 0 0-44-44m0 72a28 28 0 1 1 28-28a28 28 0 0 1-28 28"/></symbol>
+</defs></svg>
+<main>
+
+  <header class="masthead" data-reveal>
+    <div class="brand">
+      <div>
+        <h1>TIME BRIDGE</h1>
+        <p>Personal release-countdown instrument</p>
+      </div>
+    </div>
+    <div class="target">
+      <svg class="icon" aria-hidden="true"><use href="#i-flag-checkered"/></svg>
+      <div>Rockstar's official date<b>THU 19 NOV 2026</b></div>
+    </div>
+  </header>
+
+  <section class="readout" data-reveal>
+    <div class="clock" role="timer" aria-live="off">
+      <p class="sr" id="cdText">Time until Grand Theft Auto VI</p>
+      <div class="unit"><b id="cd-d">--</b><span>days</span></div>
+      <div class="unit"><b id="cd-h">--</b><span>hours</span></div>
+      <div class="unit"><b id="cd-m">--</b><span>mins</span></div>
+      <div class="unit unit--sec"><b id="cd-s">--</b><span>sec</span></div>
+    </div>
+    <div class="verdict" id="verdictCard" data-state="empty">
+      <p class="label">Verdict</p>
+      <p class="signal" id="signal">ADD SOMETHING</p>
+      <p id="signalText">Give the machine a queue to chew on.</p>
+      <div class="gap" id="gapBlock" hidden>
+        <b id="gapNum">—</b>
+        <span><b id="gapUnit">days left to play</b><br><span id="gapDetail"></span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="bridge-panel" data-reveal>
+    <div class="panel-head">
+      <h2>The bridge</h2>
+      <p id="bridgeNote">Every item in your queue, laid end to end against the time you actually have.</p>
+    </div>
+    <div class="bridge">
+      <div class="track" id="track"></div>
+      <div class="markers" id="markers"></div>
+      <div class="axis" id="axis"></div>
+    </div>
+    <div class="bridge-scale">
+      <span>Scale: <b id="scaleDays">—</b> of calendar time</span>
+      <span>Queue: <b id="scaleQueue">—</b> at your pace</span>
+    </div>
+  </section>
+
+  <section class="work">
+    <div class="panel" data-reveal>
+      <h2>Build your queue</h2>
+      <p class="sub">Rough runtimes. Precision here would be fake sophistication.</p>
+      <div class="add">
+        <div class="search-field">
+          <svg class="icon" aria-hidden="true"><use href="#i-magnifying-glass"/></svg>
+          <label class="sr" for="name">Search a show, game, book or podcast</label>
+          <input id="name" autocomplete="off" placeholder="Search a show, game, book or podcast"
+            role="combobox" aria-expanded="false" aria-controls="suggestions"
+            aria-autocomplete="list" aria-describedby="searchHelp">
+        </div>
+        <label class="sr" for="amount">Hours</label>
+        <input id="amount" type="number" min="1" step="0.5" value="10" placeholder="Hours">
+        <label class="sr" for="kind">Kind</label>
+        <select id="kind">
+          <option>Game</option><option>Show</option><option>Movie</option><option>Book</option><option>Podcast</option>
+        </select>
+        <button class="primary" id="add" disabled>
+          <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Add
+        </button>
+        <div id="suggestions" class="suggestions" role="listbox" aria-label="Search results" hidden></div>
+        <p id="searchHelp" class="sr">Results appear as you type. Use the up and down arrow keys to pick one, Enter to add it.</p>
+      </div>
+      <p class="estimate-note" id="estimateNote" role="status" hidden></p>
+      <div class="examples">
+        <button data-name="The Sopranos" data-hours="86" data-kind="Show"><svg class="icon" aria-hidden="true"><use href="#i-television"/></svg>Sopranos</button>
+        <button data-name="Red Dead Redemption 2" data-hours="50.5" data-kind="Game"><svg class="icon" aria-hidden="true"><use href="#i-game-controller"/></svg>RDR2</button>
+        <button data-name="The Wire" data-hours="60" data-kind="Show"><svg class="icon" aria-hidden="true"><use href="#i-television"/></svg>The Wire</button>
+        <button data-name="Baldur's Gate 3" data-hours="75" data-kind="Game"><svg class="icon" aria-hidden="true"><use href="#i-game-controller"/></svg>BG3</button>
+      </div>
+      <div class="queue-head">
+        <span>Playback order</span>
+        <span>First item starts first · drag the grip to reorder</span>
+      </div>
+      <div id="queue" class="queue"></div>
+      <p id="dragInstructions" class="sr">Drag with a mouse or touch. With the grip focused, use the up and down arrow keys.</p>
+      <p id="queueStatus" class="sr" aria-live="polite"></p>
+      <div class="persist">
+        <span id="saveState">Nothing saved yet.</span>
+        <span class="persist-actions">
+          <button id="export" type="button">Export</button>
+          <button id="importBtn" type="button">Load file</button>
+          <input id="importFile" type="file" accept=".md,.markdown,text/markdown,text/plain" aria-label="Load a saved queue file" hidden>
+        </span>
+      </div>
+    </div>
+
+    <div class="panel" data-reveal>
+      <h2>Read the actual schedule</h2>
+      <p class="sub">Sleep sets the ceiling. The slider sets what you actually spend.</p>
+      <div class="field start-field">
+        <label for="startDate">Start on</label>
+        <div class="start-row">
+          <input id="startDate" type="date">
+          <button id="startToday" type="button">Today</button>
+        </div>
+      </div>
+      <p class="lead-note" id="leadNote" hidden></p>
+      <div class="schedule">
+        <div class="field">
+          <label for="sleepStart">Fall asleep</label>
+          <select id="sleepStart">
+            <option value="20">8 PM</option><option value="21">9 PM</option><option value="22">10 PM</option>
+            <option value="23">11 PM</option><option value="0">12 AM</option><option value="1">1 AM</option>
+            <option value="2" selected>2 AM</option><option value="3">3 AM</option><option value="4">4 AM</option>
+          </select>
+        </div>
+        <span class="to">to</span>
+        <div class="field">
+          <label for="sleepEnd">Wake up</label>
+          <select id="sleepEnd">
+            <option value="5">5 AM</option><option value="6">6 AM</option><option value="7" selected>7 AM</option>
+            <option value="8">8 AM</option><option value="9">9 AM</option><option value="10">10 AM</option>
+            <option value="11">11 AM</option><option value="12">12 PM</option>
+          </select>
+        </div>
+      </div>
+      <div class="pace">
+        <div class="pace-top">
+          <label class="pace-label" for="paceInput">Hours a week you actually give this</label>
+          <output id="paceOut" for="paceInput">21 h/wk</output>
+        </div>
+        <input id="paceInput" type="range" min="1" max="133" step="1" value="21">
+        <p class="note">
+          <svg class="icon note-icon" aria-hidden="true"><use href="#i-moon"/></svg>
+          Awake about <b id="awakeOut">133</b> h/wk after <b id="sleepTime">5 hours</b> of sleep a day.
+          You have committed <b id="committed">21</b> of those hours to the queue.
+        </p>
+      </div>
+      <div class="yt">
+        <div class="job-top">
+          <span class="pace-label">YouTube</span>
+          <output id="ytOut" for="ytAmount">none</output>
+        </div>
+        <div class="yt-row">
+          <div class="field">
+            <label for="ytAmount">How much you watch</label>
+            <input id="ytAmount" type="number" min="0" max="24" step="0.5" value="0">
+          </div>
+          <div class="field">
+            <span class="pace-label" id="ytUnitLabel">Per</span>
+            <div class="unit-toggle" role="radiogroup" aria-labelledby="ytUnitLabel">
+              <button type="button" id="ytPerDay" role="radio" aria-checked="true">Day</button>
+              <button type="button" id="ytPerWeek" role="radio" aria-checked="false">Week</button>
+            </div>
+          </div>
+        </div>
+        <p class="note" id="ytNote">
+          <svg class="icon note-icon" aria-hidden="true"><use href="#i-youtube-logo"/></svg>
+          Nothing set. YouTube is taking no cut of your pace.
+        </p>
+      </div>
+
+      <div class="job">
+        <div class="job-top">
+          <span class="pace-label">Day job</span>
+          <output id="jobOut" for="jobHours jobStart">none</output>
+        </div>
+        <div class="job-row">
+          <div class="field">
+            <label for="jobHours">Hours a week</label>
+            <input id="jobHours" type="number" min="0" max="90" step="1" value="0">
+          </div>
+          <div class="field">
+            <label for="jobStart">Starting</label>
+            <div class="start-row">
+              <input id="jobStart" type="date">
+              <button id="jobToday" type="button">Today</button>
+            </div>
+          </div>
+        </div>
+        <p class="note" id="jobNote">No job on the books. Full pace the whole way.</p>
+      </div>
+      <div class="metrics">
+        <div class="metric"><span>Total queue</span><b id="total">0 hours</b></div>
+        <div class="metric"><span>Weeks required</span><b id="weeks">0 weeks</b></div>
+        <div class="metric"><span>Estimated finish</span><b id="finish">Add a queue</b></div>
+        <div class="metric"><span id="bufferLabel">Spare days after queue</span><b id="buffer">—</b></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Queue hours divided by your weekly pace gives the weeks required. The release target is
+  Rockstar's own Newswire date. This is a toy for planning, not a supernatural prediction engine, tragically.</p>
+</main>
+<script>
+/* TIME BRIDGE — pure calculation stays separate from DOM rendering. */
+const TARGET = new Date('2026-11-19T00:00:00'); // Local time on purpose. A personal clock, not a launch console.
+let queue = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Catalog names carry curly apostrophes, keyboards produce straight ones. Match on a flattened form.
+const norm = s => String(s).toLowerCase().replace(/[‘’]/g, "'");
+// Looser still, for matching and de-duping: punctuation is noise when someone types a title.
+const loose = s => norm(s).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+// How well a result answers what was typed. Lower is better; source order breaks ties.
+function relevance(name, query){
+  const n = loose(name), q = loose(query);
+  if(n === q) return 0;
+  if(n.startsWith(q)) return 1;
+  if(n.includes(q)) return 2;
+  const tokens = q.split(' ').filter(Boolean);
+  const hits = tokens.filter(t => n.includes(t)).length;
+  return hits === tokens.length ? 3 : 4 + (tokens.length - hits);
+}
+const KIND_ICON = {Game:'game-controller', Show:'television', Movie:'film-reel', Book:'book',
+                   Podcast:'microphone-stage', YouTube:'youtube-logo'};
+const num1 = n => +(+n).toFixed(1);
+
+const weeksFor = (hours, pace) => hours / Math.max(1, pace);
+const addDays = (date, n) => { const d = new Date(date); d.setDate(d.getDate() + n); return d; };
+// Normalised through UTC so a clock change inside the span cannot shift the
+// count by a day. Local midnight over 86400000 does exactly that wherever the
+// offset crosses zero (the UK and Portugal, every October).
+const dayNumber = d => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000;
+const fmtDate = d => d.toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+const midnight = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+// Build these by hand: `new Date('2026-09-15')` parses as UTC and lands on the wrong local day.
+const toDateValue = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function fromDateValue(v){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+}
+// The tool has no notion of progress already made, so a start before today would
+// quietly claim you had already done those hours. Today is the floor.
+function startDate(){
+  const today = midnight(new Date());
+  const picked = fromDateValue($('startDate').value);
+  return (!picked || picked < today) ? today : picked;
+}
+const fmtHours = h => `${+h.toFixed(1)} hour${h === 1 ? '' : 's'}`;
+
+function readSchedule(){
+  const start = +$('sleepStart').value, end = +$('sleepEnd').value;
+  const sleep = (end - start + 24) % 24 || 24, awake = 24 - sleep, ceiling = awake * 7;
+  return {sleep, awake, ceiling, pace: Math.min(Math.max(1, +$('paceInput').value || 1), ceiling)};
+}
+
+/* ---- countdown --------------------------------------------------------- */
+function renderCountdown(){
+  const diff = TARGET - new Date();
+  if(diff <= 0){
+    $('cd-d').textContent = '00'; $('cd-h').textContent = '00';
+    $('cd-m').textContent = '00'; $('cd-s').textContent = '00';
+    return;
+  }
+  const sec = Math.floor(diff / 1000);
+  const pad = n => String(n).padStart(2, '0');
+  $('cd-d').textContent = Math.floor(sec / 86400);
+  $('cd-h').textContent = pad(Math.floor(sec % 86400 / 3600));
+  $('cd-m').textContent = pad(Math.floor(sec % 3600 / 60));
+  $('cd-s').textContent = pad(sec % 60);
+  $('cdText').textContent = `${Math.floor(sec/86400)} days until Grand Theft Auto VI`;
+}
+
+/* ---- the pace model ----------------------------------------------------
+   A job starting mid-timeline means the pace is piecewise, not constant: full
+   rate until the job begins, a reduced rate after. Everything downstream asks
+   `dayForHour` how far into the calendar a given cumulative hour lands, rather
+   than dividing by one rate.                                              */
+function readJob(){
+  const hours = Math.max(0, +$('jobHours').value || 0);
+  const today = midnight(new Date());
+  const picked = fromDateValue($('jobStart').value);
+  const date = (!picked || picked < today) ? today : picked;
+  return {hours, date, startOff: Math.max(0, dayNumber(date) - dayNumber(today))};
+}
+
+/* ---- YouTube: a rate, not a pile --------------------------------------
+   One dial, read as hours a day or hours a week. It comes off your *pace*
+   rather than off the ceiling the way a job does, because YouTube is drawn
+   from exactly the leisure budget the queue draws from, so it has to cost
+   you something at every slider position rather than only when it squeezes
+   past the ceiling. Slower pace, slower burn, so fewer queue hours are
+   needed to reach launch day: that is the whole point of it.            */
+let ytUnit = 'day';
+function readYouTube(){
+  const amount = Math.max(0, +$('ytAmount').value || 0);
+  const perDay = ytUnit === 'week' ? amount / 7 : amount;
+  return {amount, unit: ytUnit, perDay, perWeek: perDay * 7};
+}
+function setYtUnit(unit, {convert = false} = {}){
+  if(unit !== 'day' && unit !== 'week') unit = 'day';
+  // Toggling reads the same dial in other units; it must not silently mean
+  // something seven times larger.
+  if(convert && unit !== ytUnit){
+    const v = Math.max(0, +$('ytAmount').value || 0);
+    $('ytAmount').value = unit === 'week' ? num1(v * 7) : +(v / 7).toFixed(2);
+  }
+  ytUnit = unit;
+  $('ytAmount').max = unit === 'week' ? 168 : 24;
+  $('ytAmount').step = unit === 'week' ? 1 : 0.5;
+  $('ytPerDay').setAttribute('aria-checked', String(unit === 'day'));
+  $('ytPerWeek').setAttribute('aria-checked', String(unit === 'week'));
+  render();
+}
+
+function buildSchedule(){
+  const {pace: fullPace, ceiling} = readSchedule();
+  const yt = readYouTube();
+  const now = new Date();
+  const startOff = Math.max(0, dayNumber(startDate()) - dayNumber(now));
+  const job = readJob();
+  // A job dated before the queue starts simply applies from the queue's own start.
+  const jobOff = job.hours > 0 ? Math.max(startOff, job.startOff) : Infinity;
+  // A job takes a share of your free time, so it takes the same share of the
+  // pace you spend inside that time. Clamping against the waking ceiling instead
+  // does nothing: with 133 hours awake, no real job comes near it, and a 40 h/wk
+  // job would leave the pace untouched.
+  const freeAfter = Math.max(0, ceiling - job.hours);
+  // The job scales the pace first, then YouTube takes its cut off whatever
+  // survives, on both sides of the job's start date alike.
+  const jobPace = fullPace * (freeAfter / ceiling);
+  const pace = Math.max(0, fullPace - yt.perWeek);
+  const paceAfter = Math.max(0, jobPace - yt.perWeek);
+  const perDayBefore = pace / 7, perDayAfter = paceAfter / 7;
+  const fullBefore = fullPace / 7, fullAfter = jobPace / 7;
+  const capBefore = jobOff === Infinity ? Infinity : (jobOff - startOff) * perDayBefore;
+  const capBeforeFull = jobOff === Infinity ? Infinity : (jobOff - startOff) * fullBefore;
+
+  // Calendar days from now at which cumulative hour `h` of the queue is reached.
+  const at = (h, before, after, cap) => {
+    if(h <= 0) return startOff;
+    if(before <= 0) return Infinity;      // nothing left to spend on the queue
+    if(h <= cap) return startOff + h / before;
+    if(after <= 0) return Infinity;       // the job eats the whole budget
+    return jobOff + (h - cap) / after;
+  };
+  const dayForHour = h => at(h, perDayBefore, perDayAfter, capBefore);
+  // The same walk at the undiminished pace. The bridge draws item segments with
+  // this one and gives the gap between it and `dayForHour` to YouTube, so the
+  // block's width sits on the same hours-per-pixel scale as everything else.
+  const dayForHourFull = h => at(h, fullBefore, fullAfter, capBeforeFull);
+  // YouTube's hours are an output: its daily rate across the span actually spent
+  // working the queue.
+  const ytHoursFor = h => {
+    const end = dayForHour(h);
+    return isFinite(end) ? yt.perDay * Math.max(0, end - startOff) : Infinity;
+  };
+  return {pace, paceAfter, fullPace, jobPace, ceiling, freeAfter, startOff, jobOff, job,
+          yt, dayForHour, dayForHourFull, ytHoursFor,
+          slows: job.hours > 0 && paceAfter < Math.max(0, fullPace - yt.perWeek),
+          stalls: job.hours > 0 && paceAfter <= 0 && pace > 0,
+          ytStalls: yt.perWeek > 0 && pace <= 0};
+}
+
+/* ---- the bridge: the queue drawn against real calendar time ------------- */
+function renderBridge(){
+  const {pace} = readSchedule();
+  const now = new Date();
+  const daysLeft = Math.max(0, (TARGET - now) / 86400000);
+  const totalHours = queue.reduce((a, x) => a + x.hours, 0);
+  const start = startDate();
+  const leadDays = Math.max(0, dayNumber(start) - dayNumber(now));
+  const plan = buildSchedule();
+  const endDay = plan.dayForHour(totalHours);
+  // A stalled queue has no end, so give the axis a fixed overrun to draw into.
+  // YouTube can stall it with no job on the books, and `jobOff` is Infinity in
+  // that case, so the fallback has to stay finite on its own.
+  const spanDay = isFinite(endDay) ? endDay
+    : Math.max(daysLeft, isFinite(plan.jobOff) ? plan.jobOff : 0) * 1.6;
+  // The axis stretches to whichever runs longer, so an overrun stays visible instead of clipping.
+  const axisDays = Math.max(daysLeft, spanDay, 1) * 1.04;
+  const pct = d => d / axisDays * 100;
+  const clampDay = d => isFinite(d) ? d : axisDays;
+
+  const track = $('track');
+  // Segment widths come from the schedule, not a flat rate, so an item that
+  // straddles the job's start date visibly stretches past it.
+  let hoursSoFar = 0;
+  const segs = queue.map(x => {
+    const from = clampDay(plan.dayForHourFull(hoursSoFar));
+    hoursSoFar += x.hours;
+    const to = clampDay(plan.dayForHourFull(hoursSoFar));
+    const left = pct(from), w = Math.max(0, pct(to) - left);
+    const label = w > 7 ? `<span>${esc(x.name)}</span>` : '';
+    return `<div class="seg" style="left:${left}%;width:${w}%"
+      title="${esc(x.name)} — ${fmtHours(x.hours)}" role="img"
+      aria-label="${esc(x.name)}, ${fmtHours(x.hours)}">${label}</div>`;
+  }).join('');
+  // YouTube is the balance: the calendar the queue loses to it, drawn as the
+  // last block so the items keep the widths their own hours earn.
+  const ytHours = plan.ytHoursFor(totalHours);
+  let ytSeg = '';
+  if(queue.length && isFinite(ytHours) && ytHours > 0){
+    const from = clampDay(plan.dayForHourFull(totalHours));
+    const left = pct(from), w = Math.max(0, pct(clampDay(endDay)) - left);
+    const title = `YouTube \u2014 ${fmtHours(ytHours)}`;
+    ytSeg = `<div class="seg seg--yt" style="left:${left}%;width:${w}%"
+      title="${esc(title)}" role="img" aria-label="YouTube, ${fmtHours(ytHours)}">`
+      + `${w > 7 ? '<span>YouTube</span>' : ''}</div>`;
+  }
+  const cursor = clampDay(endDay);
+
+  const leadW = pct(leadDays);
+  const lead = leadDays
+    ? `<div class="lead" style="width:${leadW}%" title="Not started until ${esc(fmtDate(start))}">`
+      + `${leadW > 12 ? `<span>Starts ${esc(fmtDate(start))}</span>` : ''}</div>`
+    : '';
+
+  // Where the pace drops, marked so the stretch downstream has a visible cause.
+  const jobX = plan.job.hours && isFinite(plan.jobOff) && plan.jobOff < axisDays ? pct(plan.jobOff) : null;
+  const jobMark = jobX === null ? '' :
+    `<div class="marker marker--job ${jobX > 88 ? 'marker--end' : jobX < 8 ? 'marker--start' : ''}" style="left:${jobX}%">`
+    + `<span class="flag">Job starts</span></div>`;
+
+  const relX = pct(daysLeft);
+  track.innerHTML = lead + segs + ytSeg
+    + (queue.length ? '' : '<p class="track-empty">Nothing on the bridge yet.</p>')
+    + (cursor > daysLeft ? `<div class="overrun" style="left:${relX}%"></div>` : '');
+  $('markers').innerHTML = jobMark
+    + `<div class="marker ${relX > 88 ? 'marker--end' : relX < 8 ? 'marker--start' : ''}" style="left:${relX}%"><span class="flag">`
+    + `<svg class="icon" aria-hidden="true"><use href="#i-flag-checkered"/></svg>Release</span></div>`;
+
+  // Month ticks give the axis a real scale rather than an abstract 0-100%.
+  const ticks = [`<span class="tick tick--now" style="left:0">Today</span>`];
+  const walker = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  let lastTick = 0; // Labels overlap below ~7% apart, so a month too close to Today is dropped.
+  while((walker - now) / 86400000 < axisDays * 0.94){
+    const x = pct((walker - now) / 86400000);
+    if(x - lastTick >= 7){
+      ticks.push(`<span class="tick" style="left:${x}%">${walker.toLocaleDateString(undefined, {month:'short'})}</span>`);
+      lastTick = x;
+    }
+    walker.setMonth(walker.getMonth() + 1);
+  }
+  $('axis').innerHTML = ticks.join('');
+
+  $('scaleDays').textContent = `${Math.round(axisDays)} days`;
+  $('scaleQueue').textContent = !queue.length ? 'empty'
+    : isFinite(endDay) ? `${Math.round(endDay - leadDays)} days` : 'never clears';
+  $('bridgeNote').textContent = !queue.length
+    ? 'Add something and it lands here, measured against the time you actually have.'
+    : plan.ytStalls
+      ? `${num1(plan.yt.perWeek)} h/wk of YouTube takes your whole pace, so the queue never moves.`
+    : isFinite(ytHours) && ytHours > 0
+      ? `The last block is YouTube: ${fmtHours(ytHours)} at ${num1(plan.yt.perDay)} h/day, spent alongside everything else rather than after it.`
+    : plan.stalls
+      ? `The job takes the whole budget from ${fmtDate(plan.job.date)}, so the queue simply stops there.`
+    : plan.slows && isFinite(plan.jobOff)
+      ? `Segments widen after ${fmtDate(plan.job.date)} — same hours, fewer per week once the job starts.`
+    : leadDays && cursor <= daysLeft
+      ? `Nothing moves until ${fmtDate(start)}. The queue still clears the marker after that.`
+    : cursor > daysLeft
+      ? 'The queue runs past the release marker. That overhang is what you still have left to play.'
+      : 'The queue clears the marker with room to spare. You run out before GTA VI arrives.';
+}
+
+/* ---- main render ------------------------------------------------------- */
+let lastTotal = null, lastSig = null, booted = false;
+// An ongoing show's hours are a function of today's date, so they are recomputed
+// rather than stored. Editing the number by hand pins it: a correction you typed
+// should survive tomorrow's tick.
+function syncPodcasts(){
+  for(const x of queue){
+    if(!x.pod || x.pod.pinned) continue;
+    const h = podcastHours(x.pod);
+    if(h >= 1) x.hours = +h.toFixed(1);
+  }
+}
+
+// What the row says under the title. For a podcast that is the whole derivation,
+// because "1917 hours" with no working shown is a number nobody can argue with.
+function itemNote(x){
+  const p = x.pod;
+  if(!p) return x.kind;
+  const bits = [`${p.eps} \u00d7 ${Math.round(p.avgMin)} min`];
+  if(!p.ongoing) bits.push('finished');
+  else if(p.perWeek >= 1) bits.push(`${num1(p.perWeek)}/wk`);
+  else if(p.perWeek * 4.35 >= 1) bits.push(`${num1(p.perWeek * 4.35)}/mo`);
+  else if(p.perWeek > 0) bits.push(`${num1(p.perWeek * 52)}/yr`);
+  const acc = podcastAccrual(p);
+  if(p.pinned) bits.push('hours edited');
+  else if(acc >= 0.1) bits.push(`+${num1(acc)}h by launch`);
+  return `Podcast \u00b7 ${bits.join(' \u00b7 ')}`;
+}
+
+function render(){
+  syncPodcasts();
+  renderCountdown();
+  const now = new Date(), released = now >= TARGET;
+  const {sleep, ceiling, pace} = readSchedule();
+  $('paceInput').max = ceiling;
+  if(+$('paceInput').value > ceiling) $('paceInput').value = ceiling;
+
+  const totalQueued = queue.reduce((a, x) => a + x.hours, 0);
+  const start = startDate();
+  const leadDays = Math.max(0, dayNumber(start) - dayNumber(now)); // runway spent before you begin
+  const plan = buildSchedule();
+  const finishDay = plan.dayForHour(totalQueued);
+  const stalled = totalQueued > 0 && !isFinite(finishDay);
+  // YouTube's cost is already inside the reduced pace, so its hours may only be
+  // added to the headline total if `weeks` then divides by the *full* pace. The
+  // two presentations agree exactly; mixing them would double-count.
+  const ytHours = stalled ? 0 : plan.ytHoursFor(totalQueued);
+  const total = totalQueued + ytHours;
+  const finish = stalled ? null : addDays(now, Math.ceil(finishDay));
+  const weeks = weeksFor(total, pace); // still the honest figure at the pre-job rate
+  // Round once, on calendar days, so the buffer always agrees with the finish date beside it.
+  const buffer = stalled ? -Infinity : dayNumber(TARGET) - dayNumber(finish);
+  const state = released ? 'shipped' : !total ? 'empty'
+    : stalled ? 'behind' : buffer > 0 ? 'ahead' : buffer === 0 ? 'tie' : 'behind';
+
+  $('paceOut').textContent = `${pace} h/wk`;
+  $('awakeOut').textContent = ceiling;
+  $('sleepTime').textContent = `${sleep} hours`;
+  $('committed').textContent = pace;
+  const yt = plan.yt;
+  const daysToLaunch = Math.max(0, dayNumber(TARGET) - dayNumber(start));
+  $('ytOut').textContent = yt.perWeek ? `${num1(yt.amount)} h/${yt.unit === 'week' ? 'wk' : 'day'}` : 'none';
+  $('ytNote').innerHTML = '<svg class="icon note-icon" aria-hidden="true">'
+    + '<use href="#i-youtube-logo"/></svg> ' + (!yt.perWeek
+    ? 'Nothing set. YouTube is taking no cut of your pace.'
+    : plan.ytStalls
+      ? `<b>${num1(yt.perWeek)}</b> h/wk swallows your whole <b>${pace}</b> h/wk. Nothing is left for the queue.`
+      : `<b>${num1(yt.perDay)}</b> h/day is <b>${num1(yt.perWeek)}</b> h/wk off the top, so the queue runs at `
+        + `<b>${num1(plan.pace)}</b> h/wk. That is <b>${Math.round(yt.perDay * daysToLaunch)}</b> fewer queue `
+        + `hours needed to reach launch day.`);
+
+  const jobPace = plan.paceAfter;
+  const cut = Math.max(0, plan.pace - jobPace);
+  const share = `takes ${plan.job.hours} of your ${plan.ceiling} waking hours`;
+  $('jobOut').textContent = plan.job.hours ? `${plan.job.hours} h/wk` : 'none';
+  $('jobNote').textContent = !plan.job.hours
+    ? 'No job on the books. Full pace the whole way.'
+    : plan.stalls
+      ? `${plan.job.hours} h/wk leaves no waking time at all from ${fmtDate(plan.job.date)}. The queue stops there.`
+    : cut < 0.05
+      ? `${plan.job.hours} h/wk barely dents ${num1(plan.pace)} h/wk, so the pace holds.`
+    : plan.jobOff === 0
+      ? `Working from today, so the job ${share} and the queue runs at ${num1(jobPace)} h/wk instead of ${num1(plan.pace)}.`
+      : `${num1(plan.pace)} h/wk until ${fmtDate(plan.job.date)}, then ${num1(jobPace)} h/wk once the job ${share}.`;
+
+  $('leadNote').hidden = !leadDays;
+  if(leadDays) $('leadNote').textContent = `Starting ${fmtDate(start)} costs you `
+    + `${leadDays} day${leadDays === 1 ? '' : 's'} of runway before the queue moves at all.`;
+  $('total').textContent = fmtHours(total);
+  $('weeks').textContent = total ? `${weeks.toFixed(1)} weeks` : '0 weeks';
+  $('finish').textContent = !total ? 'Add a queue' : stalled ? 'never, at this pace' : fmtDate(finish);
+  // The label carries the sign, so the row never reads "Spare days ... 12 days behind".
+  $('bufferLabel').textContent = total && !released && (stalled || buffer < 0)
+    ? 'Days past the release' : 'Spare days after queue';
+  $('buffer').textContent = !total ? '—' : released ? 'target passed' : stalled ? 'never finishes'
+    : buffer === 0 ? 'photo finish'
+    : `${Math.abs(buffer)} day${Math.abs(buffer) === 1 ? '' : 's'}`;
+  // Tone matches the verdict card, which already scores this backwards on purpose:
+  // running past the release is the win, because you still have things left to play.
+  // Clearing early means you ran out.
+  $('buffer').dataset.tone = !total || released ? '' : stalled || buffer < 0 ? 'pos' : buffer > 0 ? 'neg' : 'tie';
+
+  const finishLabel = stalled ? 'never' : fmtDate(finish);
+  const copy = {
+    shipped: ['IT SHIPPED', 'GTA VI is out. Nothing left to race.'],
+    empty:   ['ADD SOMETHING', 'Give the machine a queue to chew on.'],
+    ahead:   ['THE QUEUE RUNS DRY', `Starting ${leadDays ? fmtDate(start) : 'today'}, you finish around ${finishLabel} and then wait.`],
+    tie:     ['PHOTO FINISH', 'You land on release day itself. Not an hour wasted either way.'],
+    behind:  ['THE BACKLOG WINS', stalled
+      ? plan.ytStalls
+        ? `${num1(plan.yt.perWeek)} h/wk of YouTube is your entire pace. The queue never moves at all.`
+        : `The job takes every hour you had. The queue stops moving on ${fmtDate(plan.job.date)}.`
+      : `At this pace ${queue.length === 1 ? 'this item' : 'the queue'} overruns the target. Bold strategy.`]
+  }[state];
+  $('verdictCard').dataset.state = state;
+  $('signal').textContent = copy[0];
+  $('signalText').textContent = copy[1];
+
+  // The whole question in one number: how much room is left once the queue is done.
+  const showGap = total && !released && !stalled;
+  $('gapBlock').hidden = !showGap;
+  if(showGap){
+    $('gapNum').textContent = Math.abs(buffer);
+    $('gapUnit').textContent = buffer > 0 ? `day${buffer === 1 ? '' : 's'} empty`
+      : buffer === 0 ? 'days either way' : `day${buffer === -1 ? '' : 's'} left to play`;
+    $('gapDetail').textContent = buffer > 0
+      ? `with nothing queued, between finishing on ${fmtDate(finish)} and launch on ${fmtDate(TARGET)}.`
+      : buffer === 0
+        ? `you finish on ${fmtDate(finish)}, the day it launches.`
+        : `still going on ${fmtDate(TARGET)}; the queue ends ${fmtDate(finish)}.`;
+  }
+
+  // Flash only the number that actually moved — motion that carries information.
+  if(lastTotal !== null && lastTotal !== total){
+    ['total','weeks','buffer'].forEach(id => {
+      $(id).classList.remove('flash'); void $(id).offsetWidth; $(id).classList.add('flash');
+    });
+  }
+  lastTotal = total;
+
+  // Rebuild only when something actually changed, so the 30s tick doesn't replay
+  // every entrance animation in the page. The day is in the signature because the
+  // bridge's release marker creeps left as the calendar advances.
+  const sig = queue.map(x => `${x.name}|${x.hours}|${x.kind}`).join('\u00a7')
+    + `::${pace}::${$('sleepStart').value}-${$('sleepEnd').value}::${$('startDate').value}`
+    + `::${$('jobHours').value}-${$('jobStart').value}::${ytUnit}-${$('ytAmount').value}`
+    + `::${dayNumber(now)}`;
+  if(sig !== lastSig){
+    lastSig = sig;
+    if(booted) saveState(); // The boot render is a restore, not a change worth re-saving.
+    renderBridge();
+    // Rebuilding the rows while someone is typing in one would steal the caret.
+    if(!$('queue').contains(document.activeElement)) renderQueue();
+  }
+}
+
+let dragState = null;
+
+function announceQueueMove(name, index){
+  $('queueStatus').textContent = `${name} moved to position ${index + 1} of ${queue.length}.`;
+}
+
+function moveQueueItem(from, to, {focus = false, announce = true, commit = true} = {}){
+  if(from === to || from < 0 || to < 0 || from >= queue.length || to >= queue.length) return false;
+  const [item] = queue.splice(from, 1);
+  queue.splice(to, 0, item);
+  document.activeElement?.blur();
+  if(commit){ lastSig = null; render(); }
+  else renderQueue();
+  if(focus) $('queue').querySelector(`[data-drag-index="${to}"]`)?.focus();
+  if(announce) announceQueueMove(item.name, to);
+  return true;
+}
+
+function markDraggedRow(){
+  const row = $('queue').querySelector(`[data-item-index="${dragState?.index}"]`);
+  if(row){ row.classList.add('is-dragging'); row.inert = true; }
+}
+
+function dragMove(e){
+  if(!dragState || e.pointerId !== dragState.pointerId) return;
+  e.preventDefault();
+  const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.item');
+  if(!target || !$('queue').contains(target)) return;
+  const hoverIndex = +target.dataset.itemIndex;
+  const box = target.getBoundingClientRect();
+  let to = e.clientY < box.top + box.height / 2 ? hoverIndex : hoverIndex + 1;
+  if(to > dragState.index) to -= 1;
+  if(to === dragState.index || to < 0 || to >= queue.length) return;
+  const from = dragState.index;
+  dragState.index = to;
+  if(moveQueueItem(from, to, {announce:false, commit:false})){
+    dragState.moved = true;
+    $('queue').classList.add('is-sorting');
+    markDraggedRow();
+  }else dragState.index = from;
+}
+
+function dragEnd(e){
+  if(!dragState || e.pointerId !== dragState.pointerId) return;
+  const {index, name, moved} = dragState;
+  dragState = null;
+  document.removeEventListener('pointermove', dragMove);
+  document.removeEventListener('pointerup', dragEnd);
+  document.removeEventListener('pointercancel', dragEnd);
+  $('queue').classList.remove('is-sorting');
+  $('queue').querySelectorAll('.is-dragging').forEach(row => { row.classList.remove('is-dragging'); row.inert = false; });
+  if(moved){ lastSig = null; render(); }
+  $('queue').querySelector(`[data-drag-index="${index}"]`)?.focus();
+  if(moved) announceQueueMove(name, index);
+}
+
+// Weeks per item are quoted at the pace YouTube actually leaves you, so the
+// rows agree with the bridge instead of with the slider.
+const wkLabel = (hours, pace) => pace > 0 ? `${(hours / pace).toFixed(1)} wk` : '\u2014';
+
+function renderQueue(){
+  const plan = buildSchedule();
+  const pace = plan.pace;
+  const ytHours = plan.ytHoursFor(queue.reduce((a, x) => a + x.hours, 0));
+  // Pinned last, matching its block on the bridge. No grip, because a rate has
+  // no position in a playback order, and no hours field, because they are
+  // derived. You turn it off with the dial, not with a remove button.
+  const ytRow = (queue.length && isFinite(ytHours) && ytHours > 0) ? `<div class="item item--yt">
+      <div class="item-order">
+        <span class="slot" aria-hidden="true"></span>
+        <span class="position" aria-hidden="true">\u2013\u2013</span>
+        <svg class="icon kind" aria-hidden="true"><use href="#i-youtube-logo"/></svg>
+      </div>
+      <div><b>YouTube</b><small>Constant \u00b7 ${num1(plan.yt.perDay)} h/day</small></div>
+      <span class="hours"><b>${num1(ytHours)}</b>h</span>
+      <span class="wk">${wkLabel(ytHours, pace)}</span>
+      <span class="slot" aria-hidden="true"></span>
+    </div>` : '';
+
+  $('queue').innerHTML = (queue.length ? queue.map((x, i) => `<div class="item" data-item-index="${i}" style="animation-delay:${Math.min(i * 35, 280)}ms">
+      <div class="item-order">
+        <button class="drag-handle" type="button" data-drag-index="${i}"
+          aria-label="Drag ${esc(x.name)} to reorder" aria-describedby="dragInstructions" title="Drag to reorder">
+          <svg class="icon" aria-hidden="true"><use href="#i-dots-six-vertical"/></svg></button>
+        <span class="position" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span>
+        <svg class="icon kind" aria-hidden="true"><use href="#i-${KIND_ICON[x.kind] || 'book'}"/></svg>
+      </div>
+      <div><b>${esc(x.name)}</b><small>${esc(itemNote(x))}</small></div>
+      <span class="hours"><label class="sr" for="h${i}">Hours for ${esc(x.name)}</label>
+        <input id="h${i}" type="number" min="1" step="0.5" value="${x.hours}" data-hours="${i}">h</span>
+      <span class="wk">${wkLabel(x.hours, pace)}</span>
+      <button class="remove" type="button" data-remove="${i}" aria-label="Remove ${esc(x.name)}" title="Remove item">
+        <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>`).join('')
+    : `<div class="empty">
+        <svg viewBox="0 0 120 70" aria-hidden="true" fill="none">
+          <path d="M8 48c22 0 22-30 52-30s30 30 52 30" stroke="var(--border)" stroke-width="3" stroke-linecap="round"/>
+          <path d="M8 48v12M112 48v12" stroke="var(--border)" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="60" cy="18" r="4" fill="var(--primary)"/>
+        </svg>
+        Your queue is empty. Suspiciously efficient.
+      </div>`) + ytRow;
+
+  $('queue').querySelectorAll('[data-hours]').forEach(input => {
+    const item = queue[+input.dataset.hours];
+    input.oninput = () => {
+      const v = +input.value;
+      if(!(v >= 1)) return; // Mid-edit junk like an empty field. Blur settles it.
+      item.hours = v;
+      if(item.pod) item.pod.pinned = true; // Your number now, not the feed's.
+      input.closest('.item').querySelector('.wk').textContent = wkLabel(v, buildSchedule().pace);
+      render();
+    };
+    input.onblur = () => { input.value = item.hours; }; // Snap back from anything the guard rejected.
+    input.onkeydown = e => { if(e.key === 'Enter') input.blur(); };
+  });
+  $('queue').querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
+    const gone = +b.dataset.remove;
+    queue.splice(gone, 1);
+    lastSig = null;
+    renderQueue(); // Focus is on this button, so render() would skip the rebuild and leave the row up.
+    render();
+    // The button that had focus no longer exists. Hand the keyboard to the row
+    // that slid up into its place rather than dropping it on the body.
+    const rows = $('queue').querySelectorAll('[data-remove]');
+    (rows[Math.min(gone, rows.length - 1)] || $('name')).focus();
+  });
+  $('queue').querySelectorAll('[data-drag-index]').forEach(handle => {
+    handle.onpointerdown = e => {
+      if(dragState) return;
+      if(e.button !== 0 && e.pointerType === 'mouse') return;
+      e.preventDefault();
+      const index = +handle.dataset.dragIndex;
+      dragState = {index, pointerId:e.pointerId, name:queue[index].name, moved:false};
+      $('queue').classList.add('is-sorting');
+      markDraggedRow();
+      document.addEventListener('pointermove', dragMove, {passive:false});
+      document.addEventListener('pointerup', dragEnd);
+      document.addEventListener('pointercancel', dragEnd);
+    };
+    handle.onkeydown = e => {
+      const from = +handle.dataset.dragIndex;
+      const to = e.key === 'ArrowUp' ? from - 1 : e.key === 'ArrowDown' ? from + 1 : from;
+      if(to === from) return;
+      e.preventDefault();
+      moveQueueItem(from, to, {focus:true});
+    };
+  });
+  if(dragState){
+    $('queue').classList.add('is-sorting');
+    markDraggedRow();
+  }
+}
+
+function addToQueue(name, hours, kind, pod){
+  if(!name || !(hours >= 1)) return false;
+  queue.push(pod ? {name, hours, kind, pod} : {name, hours, kind});
+  lastSig = null;
+  renderQueue();
+  render();
+  return true;
+}
+
+/* ---- catalogs ---------------------------------------------------------- */
+// Two tiers of data quality here, deliberately kept distinguishable:
+//
+//   * Entries carrying `extra`/`complete` (and half-hour precision) came with this
+//     prototype, attributed to HowLongToBeat. Unverified against the source.
+//   * Entries with `main` only, rounded to whole hours, are approximate main-story
+//     times from general knowledge — NOT scraped from HowLongToBeat. The rounding is
+//     the tell: whole numbers mean "roughly this", not "measured".
+//
+// Every row's hours are editable inline, so a wrong estimate costs one keystroke.
+// `extra`/`complete` stay unused until there's a Main / Extras / Completionist toggle.
+const hltbGames=[
+ {name:'Red Dead Redemption',aliases:['RDR1'],main:18,extra:41,complete:80},
+ {name:'Red Dead Redemption 2',main:50.5,extra:84.5,complete:194},
+ {name:'Grand Theft Auto III',aliases:['GTA 3','GTA III'],main:14,extra:20.5,complete:36.5},
+ {name:'Grand Theft Auto: Vice City',aliases:['GTA Vice City','Vice City'],main:17,extra:24,complete:38},
+ {name:'Grand Theft Auto: San Andreas',aliases:['GTA San Andreas','GTASA','GTA SA','San Andreas'],main:30,extra:45,complete:69.5},
+ {name:'Grand Theft Auto IV',aliases:['GTA 4','GTA IV'],main:27,extra:54,complete:72.5},
+ {name:'Grand Theft Auto V',aliases:['GTA 5','GTA V'],main:32,extra:51.5,complete:89.5},
+ {name:'Grand Theft Auto: Liberty City Stories',aliases:['LCS'],main:15,extra:25,complete:40},
+ {name:'Grand Theft Auto: Vice City Stories',aliases:['VCS'],main:15.5,extra:24,complete:41},
+ {name:'Cyberpunk 2077',main:26,extra:63,complete:109},
+ {name:'The Witcher 3: Wild Hunt',main:51.5,extra:103,complete:175},
+ {name:"Baldur's Gate 3",aliases:['BG3'],main:75,extra:100,complete:130},
+ {name:'Portal 2',main:8.5,extra:13.5,complete:22.5},
+
+ // Fallout
+ {name:'Fallout',aliases:['Fallout 1','F1'],main:15},
+ {name:'Fallout 2',aliases:['F2'],main:25},
+ {name:'Fallout 3',aliases:['F3'],main:24},
+ {name:'Fallout: New Vegas',aliases:['New Vegas','FNV','Fallout NV'],main:28},
+ {name:'Fallout 4',aliases:['F4'],main:27},
+ {name:'Fallout 76',aliases:['F76'],main:25},
+ {name:'Fallout Tactics',main:22},
+
+ // The rest of Rockstar, since that is the itch being scratched
+ {name:'Bully',aliases:['Canis Canem Edit'],main:14},
+ {name:'L.A. Noire',aliases:['LA Noire'],main:20},
+ {name:'Max Payne',main:9},
+ {name:'Max Payne 2',main:7},
+ {name:'Max Payne 3',main:9},
+ {name:'Manhunt',main:9},
+ {name:'Midnight Club: Los Angeles',aliases:['Midnight Club LA'],main:11},
+
+ // Bethesda-adjacent open worlds
+ {name:'The Elder Scrolls IV: Oblivion',aliases:['Oblivion','TES4'],main:27},
+ {name:'The Elder Scrolls V: Skyrim',aliases:['Skyrim','TES5'],main:34},
+ {name:'Starfield',main:24},
+
+ // Big-backlog open worlds and action games
+ {name:'Elden Ring',main:59},
+ {name:'Dark Souls',main:31},
+ {name:'Dark Souls III',aliases:['DS3','Dark Souls 3'],main:32},
+ {name:'Bloodborne',main:34},
+ {name:'Sekiro: Shadows Die Twice',aliases:['Sekiro'],main:29},
+ {name:'God of War',aliases:['GoW 2018'],main:21},
+ {name:'God of War Ragnarok',aliases:['Ragnarok','GoW Ragnarok'],main:26},
+ {name:'Ghost of Tsushima',aliases:['Tsushima'],main:25},
+ {name:'Horizon Zero Dawn',aliases:['HZD'],main:23},
+ {name:'Horizon Forbidden West',aliases:['Forbidden West'],main:29},
+ {name:"Marvel's Spider-Man",aliases:['Spider-Man','Spiderman'],main:17},
+ {name:'The Last of Us',aliases:['TLOU'],main:15},
+ {name:'The Last of Us Part II',aliases:['TLOU2','Last of Us 2'],main:24},
+ {name:'Death Stranding',main:40},
+ {name:'Metal Gear Solid V: The Phantom Pain',aliases:['MGSV','MGS5'],main:46},
+ {name:'Assassin\u2019s Creed Odyssey',aliases:['AC Odyssey'],main:44},
+ {name:'Assassin\u2019s Creed Valhalla',aliases:['AC Valhalla'],main:61},
+ {name:'Watch Dogs 2',main:19},
+ {name:'Sleeping Dogs',main:15},
+ {name:'Days Gone',main:30},
+ {name:'Control',main:11},
+ {name:'Alan Wake 2',main:17},
+ {name:'Mafia: Definitive Edition',aliases:['Mafia'],main:10},
+
+ // RPGs and long-tail time sinks
+ {name:'Persona 5 Royal',aliases:['P5R','Persona 5'],main:103},
+ {name:'Final Fantasy VII Remake',aliases:['FF7 Remake','FF7R'],main:33},
+ {name:'Mass Effect 2',main:25},
+ {name:'Mass Effect Legendary Edition',aliases:['Mass Effect'],main:96},
+ {name:'Disco Elysium',main:22},
+ {name:'Hollow Knight',main:27},
+ {name:'Hades',main:21},
+ {name:'Stardew Valley',main:53},
+ {name:'Outer Wilds',main:16},
+ {name:'Return of the Obra Dinn',aliases:['Obra Dinn'],main:8}
+];
+const showCache = {};
+
+/* ---- saved state ------------------------------------------------------
+   A static page opened from disk cannot write files, and browsers block it
+   from reading a sibling file too (verified: Chromium refuses `fetch` on a
+   file:// neighbour). localStorage is the one local store that works either
+   way, so that is the autosave. It holds plain Markdown, so the same text
+   exports to a real file with no second format to maintain.              */
+
+const STORE_KEY = 'timebridge.v1';
+const escCell = v => String(v).replace(/\|/g, '\\|');
+
+// A podcast's hours are derived from four numbers, so the four numbers are what
+// gets saved. Storing only the total would freeze a growing show at whatever it
+// happened to be the day you closed the tab.
+const podCell = pod => !pod ? '' :
+  `eps=${pod.eps};min=${pod.avgMin};wk=${pod.perWeek};on=${pod.ongoing ? 1 : 0};pin=${pod.pinned ? 1 : 0}`;
+
+function parsePodCell(cell){
+  if(!/eps=/.test(cell || '')) return null;
+  const get = k => { const m = new RegExp(k + '=([\\d.]+)').exec(cell); return m ? +m[1] : null; };
+  const eps = get('eps'), avgMin = get('min');
+  if(!(eps > 0) || !(avgMin > 0)) return null;
+  return {eps, avgMin, perWeek: get('wk') || 0, ongoing: get('on') === 1,
+          pinned: get('pin') === 1, backlog: +(eps * avgMin / 60).toFixed(1)};
+}
+
+function serializeState(){
+  const rows = queue.map(x =>
+    `| ${escCell(x.name)} | ${x.kind} | ${x.hours} | ${podCell(x.pod)} |`).join('\n');
+  return `# Time Bridge
+
+Saved ${new Date().toLocaleString()}. Reopening the page loads this automatically.
+
+## Schedule
+
+- Fall asleep: ${$('sleepStart').value}
+- Wake up: ${$('sleepEnd').value}
+- Hours per week: ${$('paceInput').value}
+- Start on: ${$('startDate').value}
+- Job hours: ${$('jobHours').value}
+- Job starts: ${$('jobStart').value}
+- YouTube per: ${ytUnit}
+- YouTube amount: ${$('ytAmount').value}
+
+## Queue
+
+| Item | Kind | Hours | Detail |
+| --- | --- | --- | --- |
+${rows || '| (empty) | | | |'}
+`;
+}
+
+function applyState(text){
+  const pick = re => { const m = text.match(re); return m ? m[1] : null; };
+  const start = pick(/-\s*Fall asleep:\s*(\d+)/i);
+  const end   = pick(/-\s*Wake up:\s*(\d+)/i);
+  const pace  = pick(/-\s*Hours per week:\s*(\d+)/i);
+  const from  = pick(/-\s*Start on:\s*(\d{4}-\d{2}-\d{2})/i);
+  const jobH  = pick(/-\s*Job hours:\s*(\d+)/i);
+  const jobD  = pick(/-\s*Job starts:\s*(\d{4}-\d{2}-\d{2})/i);
+  const ytU   = pick(/-\s*YouTube per:\s*(day|week)/i);
+  const ytA   = pick(/-\s*YouTube amount:\s*([\d.]+)/i);
+  if(start && [...$('sleepStart').options].some(o => o.value === start)) $('sleepStart').value = start;
+  if(end   && [...$('sleepEnd').options].some(o => o.value === end))     $('sleepEnd').value = end;
+  if(pace) $('paceInput').value = pace;
+  // A saved start date that has since passed is meaningless; fall back to today.
+  $('startDate').value = toDateValue(fromDateValue(from) || new Date());
+  $('startDate').value = toDateValue(startDate());
+  if(jobH !== null) $('jobHours').value = jobH;
+  $('jobStart').value = toDateValue(fromDateValue(jobD) || new Date());
+  $('jobStart').value = toDateValue(readJob().date);
+  // Restoring, not toggling: the saved number is already in the saved unit.
+  $('ytAmount').value = ytA === null ? 0 : ytA;
+  setYtUnit((ytU || 'day').toLowerCase());
+
+  const loaded = [];
+  for(const line of text.split('\n')){
+    const m = line.match(/^\s*\|(.+)\|\s*$/);
+    if(!m) continue;
+    const cells = m[1].split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|'));
+    if(cells.length < 3) continue;
+    const [name, kind, hours, detail] = cells;
+    if(!name || name === 'Item' || /^-+$/.test(name) || name === '(empty)') continue;
+    const h = parseFloat(hours);
+    if(!(h >= 1)) continue;
+    // Files written before podcasts existed have no fourth column, and load fine.
+    const pod = kind === 'Podcast' ? parsePodCell(detail) : null;
+    const row = {name, kind: KIND_ICON[kind] ? kind : 'Game', hours: h};
+    if(pod) row.pod = pod;
+    loaded.push(row);
+  }
+  queue = loaded;
+  return loaded.length;
+}
+
+let saveTimer;
+function saveState(note){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try{
+      localStorage.setItem(STORE_KEY, serializeState());
+      $('saveState').textContent = note
+        || `Saved locally · ${queue.length} item${queue.length === 1 ? '' : 's'} · ${new Date().toLocaleTimeString()}`;
+    }catch(e){
+      // Private windows and blocked site-data both land here. Say so rather than pretend.
+      $('saveState').textContent = 'Could not save locally. Use Export to keep a copy.';
+    }
+  }, 400);
+}
+
+function loadState(){
+  let text = null;
+  try{ text = localStorage.getItem(STORE_KEY); }catch(e){ /* storage unavailable; start empty */ }
+  if(!text) return false;
+  const n = applyState(text);
+  $('saveState').textContent = n
+    ? `Restored ${n} item${n === 1 ? '' : 's'} from your last session.`
+    : 'Nothing saved yet.';
+  return true;
+}
+
+$('export').onclick = () => {
+  const blob = new Blob([serializeState()], {type:'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'time-bridge.md';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = async () => {
+  const file = $('importFile').files[0];
+  if(!file) return;
+  const n = applyState(await file.text());
+  lastSig = null;
+  renderQueue();
+  render();
+  saveState(`Loaded ${n} item${n === 1 ? '' : 's'} from ${file.name}.`);
+  $('importFile').value = ''; // so re-picking the same file fires change again
+};
+
+/* ---- lookup sources ----------------------------------------------------
+   Every source below is keyless and sends `Access-Control-Allow-Origin: *`,
+   which is what lets this stay one static file with no server behind it.
+   Verified directly: Steam's storesearch, SteamSpy, and Google Books do NOT,
+   which is why none of them are here.
+
+     shows   TVMaze          real runtime  (episode runtimes, summed)
+     movies  Wikidata P2047  real runtime  (minutes, from the film entity)
+     books   Open Library    ESTIMATE      (median page count / reading rate)
+     games   local table     real-ish      (HowLongToBeat main-story times)
+             RAWG            real          (average playtime — needs a free key)
+             Wikidata        unknown       (identification only; you set the hours)
+
+   Wikidata has no playtime property for games and its P136 genres are too
+   noisy to derive one from, so an unknown game is added as an unknown rather
+   than dressed up with a fabricated number.                               */
+
+const PAGES_PER_HOUR = 40;   // ~250 wpm over a ~300-word page. Tune to taste.
+const RAWG_KEY = '';         // Free key from rawg.io/apidocs gives real playtimes for any game.
+const WD = 'https://www.wikidata.org/w/api.php?origin=*&format=json&';
+const FETCH_TIMEOUT = 4000; // A source that has not answered by now is not going to.
+let searchAbort = null;      // Aborted by the next keystroke's search, not by closing the list.
+function jget(url){
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
+  const outer = searchAbort, relay = () => ctrl.abort();
+  outer?.signal.addEventListener('abort', relay, {once:true});
+  return fetch(url, {signal: ctrl.signal})
+    .then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .finally(() => { clearTimeout(timer); outer?.signal.removeEventListener('abort', relay); });
+}
+
+function gameSuggestions(query){
+  const q = loose(query);
+  return hltbGames
+    .filter(g => loose(g.name).includes(q) || (g.aliases||[]).some(a => loose(a).includes(q)))
+    .slice(0, 5)
+    .map(g => ({kind:'Game', name:g.name, hours:g.main, note:`HowLongToBeat · ${g.main}h main story`}));
+}
+
+async function findShows(query){
+  if(showCache[query]) return showCache[query];
+  const data = await jget('https://api.tvmaze.com/search/shows?q=' + encodeURIComponent(query));
+  const hits = data.slice(0, 3).map(x => ({
+    kind:'Show', name:`${x.show.name} (${(x.show.premiered||'').slice(0,4) || 'year unknown'})`,
+    showId:x.show.id, hours:null,
+    note:`TVMaze · ${x.show.status || 'status unknown'}${x.show.averageRuntime ? ` · ~${x.show.averageRuntime} min/ep` : ''}`
+  }));
+  if(hits.length) showCache[query] = hits; // Don't cache empties; the API may just have hiccuped.
+  return hits;
+}
+
+async function findBooks(query){
+  const data = await jget('https://openlibrary.org/search.json?limit=4&fields=title,author_name,'
+    + 'number_of_pages_median,first_publish_year&q=' + encodeURIComponent(query));
+  return (data.docs || [])
+    .filter(d => d.number_of_pages_median && relevance(d.title, query) < 4)
+    .slice(0, 2).map(d => ({
+    kind:'Book',
+    name:`${d.title}${d.author_name ? ` — ${d.author_name[0]}` : ''}`,
+    hours: Math.max(1, Math.round(d.number_of_pages_median / PAGES_PER_HOUR)),
+    note:`Open Library · est. from ${d.number_of_pages_median} pages`
+  }));
+}
+
+/* ---- podcasts: a back catalogue that is still growing -------------------
+   iTunes Search is keyless and CORS-open, and its podcastEpisode lookup carries
+   both `trackTimeMillis` and `releaseDate`, which is everything the model needs:
+   average an episode, count the catalogue, read the upload rhythm off the dates.
+
+   The one trap is that Apple does not return a clean recent window. It returns a
+   complete head and a thinned tail: The Daily comes back with the last five days
+   in full and then jumps to one a week, so averaging gaps across the whole sample
+   calls a daily show weekly. `releaseRate` works around it by trusting the
+   smallest window that holds enough episodes, because thinning only ever eats
+   the old end.                                                              */
+
+/* Apple is the awkward one. It answers curl with `Access-Control-Allow-Origin: *`
+   but drops that header once the request carries a browser's user-agent and
+   Sec-Fetch headers, so `fetch` dies on MissingAllowOriginHeader — confirmed in
+   Chromium, which is why this does not use jget like every other source. The
+   endpoint still honours the old `callback` parameter, and a script tag has never
+   needed CORS. The cost is running Apple's JSON as script; the callback name is
+   single-use and the tag comes down on every path out.                      */
+let jsonpSeq = 0;
+function jsonp(url){
+  return new Promise((resolve, reject) => {
+    const cb = `__tbPodcast${++jsonpSeq}`;
+    const tag = document.createElement('script');
+    const finish = (fn, arg) => {
+      clearTimeout(timer); delete window[cb]; tag.remove(); fn(arg);
+    };
+    const timer = setTimeout(() => finish(reject, new Error('timed out')), FETCH_TIMEOUT);
+    window[cb] = data => finish(resolve, data);
+    tag.onerror = () => finish(reject, new Error('could not reach Apple'));
+    tag.src = url + '&callback=' + cb;
+    document.head.appendChild(tag);
+  });
+}
+
+const PODCAST_ONGOING_DAYS = 60;  // silent for two months reads as finished, not slow
+const PROMO = /\b(trailer|teaser|promo|preview|introducing|coming soon|announcing|announcement)\b/i;
+// Median, not mean: one four-hour anniversary special should not redraw a
+// thirty-minute show.
+function median(xs){
+  const a = xs.slice().sort((x, y) => x - y);
+  return a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2;
+}
+const podCache = {};
+
+function releaseRate(dates){
+  const now = Date.now();
+  for(const days of [7, 14, 30, 60, 90, 180, 365, 1095]){
+    const cut = now - days * 86400000;
+    const n = dates.filter(d => d >= cut).length;
+    if(n >= 3) return n / days * 7;
+  }
+  // Too sparse to window. A show this quiet has not been thinned, so the raw
+  // span across the whole sample is the honest reading.
+  if(dates.length < 2) return 0;
+  const span = (Math.max(...dates) - Math.min(...dates)) / 86400000;
+  return span > 0 ? (dates.length - 1) / span * 7 : 0;
+}
+
+// Hours a still-running show will add between today and launch day. Fixed on
+// purpose: it counts the calendar, not your progress, so reordering the queue
+// or dragging the pace slider never moves it.
+function podcastAccrual(pod){
+  if(!pod || !pod.ongoing || !(pod.perWeek > 0)) return 0;
+  const days = Math.max(0, dayNumber(TARGET) - dayNumber(new Date()));
+  return pod.perWeek * (pod.avgMin / 60) * days / 7;
+}
+const podcastHours = pod => pod.backlog + podcastAccrual(pod);
+
+async function findPodcasts(query){
+  const data = await jsonp('https://itunes.apple.com/search?media=podcast&limit=6&term='
+    + encodeURIComponent(query));
+  return (data.results || [])
+    // iTunes will hand back a fan podcast for any game or film you type, so the
+    // bar is that every word typed appears in the title. That keeps "Red Dead
+    // Redemption 2" from dragging in Red Dead Radio, while still allowing the
+    // apostrophe-s in "Dan Carlin's Hardcore History".
+    .filter(r => r.collectionId && relevance(r.collectionName, query) < 4)
+    .slice(0, 3).map(r => ({
+      kind:'Podcast', name:r.collectionName, podId:r.collectionId, hours:null,
+      note:`Apple Podcasts · ${r.artistName || 'unknown'}`
+        + (r.trackCount ? ` · ${r.trackCount} episode${r.trackCount === 1 ? '' : 's'}` : '')
+    }));
+}
+
+async function podcastProfile(collectionId){
+  if(podCache[collectionId]) return podCache[collectionId];
+  const data = await jsonp(`https://itunes.apple.com/lookup?id=${collectionId}&media=podcast`
+    + '&entity=podcastEpisode&limit=200');
+  const rows = data.results || [];
+  const coll = rows.find(r => r.wrapperType !== 'podcastEpisode') || {};
+  const all  = rows.filter(r => r.wrapperType === 'podcastEpisode');
+  // A finished show's feed often keeps only a chapter or two plus a pile of
+  // trailers for the network's other shows. S-Town came back as a 4.5-minute
+  // podcast until these were dropped.
+  const real = all.filter(e => !PROMO.test(e.trackName || ''));
+  const eps = real.length ? real : all;
+  let mins = eps.map(e => e.trackTimeMillis / 60000).filter(m => m > 0);
+  if(!mins.length) throw new Error('no episode durations');
+  let avgMin = median(mins);
+  // Second pass for untitled promo stubs: on a long-form show, a sub-five-minute
+  // entry is an announcement, not an episode. Left alone anywhere else, so a
+  // genuine fifteen-minute short still counts.
+  if(avgMin > 20){
+    const full = mins.filter(m => m >= 5);
+    if(full.length) avgMin = median(full);
+  }
+  const dates = eps.map(e => +new Date(e.releaseDate)).filter(d => d);
+  const newest = dates.length ? Math.max(...dates) : 0;
+  // trackCount is the whole catalogue; the episode list is only a sample of it.
+  const count = Math.max(coll.trackCount || 0, eps.length);
+  // Round the average first and derive the backlog from the rounded figure. The
+  // saved file keeps only these four numbers, so a reloaded podcast has to land
+  // on the same total as a freshly added one.
+  const avg = +avgMin.toFixed(1);
+  return podCache[collectionId] = {
+    eps: count,
+    avgMin: avg,
+    perWeek: +releaseRate(dates).toFixed(2),
+    ongoing: newest > 0 && (Date.now() - newest) < PODCAST_ONGOING_DAYS * 86400000,
+    backlog: +(count * avg / 60).toFixed(1)
+  };
+}
+
+// Wikidata's own descriptions are the cheapest reliable type classifier: a film entity
+// says "film", a game says "video game". Anything else here is noise we don't want.
+function wikidataKind(desc){
+  const d = (desc || '').toLowerCase();
+  if(!d || /\b(series|franchise|episode|album|song|soundtrack|edition of|landform)\b/.test(d)) return null;
+  // Games first: "video game based on the Godfather movie trilogy" is a game, and
+  // classifying it as a film let it shadow the actual film under the same name.
+  if(/video game/.test(d)) return 'Game';
+  if(/\bfilm\b|\bmovie\b/.test(d)) return 'Movie';
+  return null;
+}
+
+async function findWikidata(query){
+  const data = await jget(WD + 'action=wbsearchentities&language=en&uselang=en&limit=12&search='
+    + encodeURIComponent(query));
+  const hits = [];
+  for(const r of data.search || []){
+    const kind = wikidataKind(r.description);
+    if(!kind) continue;
+    // The local table beats Wikidata on hours, so check it before offering a blank.
+    const known = kind === 'Game' && hltbGames.find(g => loose(g.name) === loose(r.label));
+    hits.push({kind, name:r.label, qid:r.id, hours: known ? known.main : null,
+      note: known ? `HowLongToBeat · ${known.main}h main story` : `Wikidata · ${r.description}`});
+    if(hits.length >= 5) break;
+  }
+  return hits;
+}
+
+async function findRawgGames(query){
+  if(!RAWG_KEY) return [];
+  const data = await jget(`https://api.rawg.io/api/games?key=${RAWG_KEY}&page_size=4&search=`
+    + encodeURIComponent(query));
+  return (data.results || []).filter(g => g.playtime).map(g => ({
+    kind:'Game', name:g.name, hours:g.playtime, note:`RAWG · ${g.playtime}h average playtime`
+  }));
+}
+
+/* ---- resolving a pick to real hours ------------------------------------ */
+async function wikidataHours(qid, kind){
+  if(kind === 'Movie'){
+    const e = await jget(WD + 'action=wbgetentities&props=claims&ids=' + qid);
+    const mins = e.entities?.[qid]?.claims?.P2047?.[0]?.mainsnak?.datavalue?.value?.amount;
+    if(mins) return {hours: Math.max(0.5, Math.round(Math.abs(+mins) / 60 * 10) / 10), known: true};
+    return {hours: 2, known: false}; // A film with no runtime recorded. Two hours is the honest default.
+  }
+  return {hours: 10, known: false}; // Wikidata carries no playtime for games.
+}
+
+async function showHours(showId){
+  const s = await jget(`https://api.tvmaze.com/shows/${showId}?embed=episodes`);
+  const eps = s._embedded?.episodes || [];
+  const known = eps.filter(e => e.runtime).reduce((a, e) => a + e.runtime, 0) / 60;
+  // TVMaze has no episodeOrder field. Fall back to the episode count already fetched.
+  const perEp = s.averageRuntime || s.runtime || 45;
+  return Math.max(1, Math.round(known || (perEp * (eps.length || 10) / 60)));
+}
+
+/* ---- suggestion UI ----------------------------------------------------- */
+// The list is a combobox popup, so the input keeps focus and points at the
+// highlighted row through aria-activedescendant. `currentPicks` is what Enter
+// and the arrow keys act on; a skeleton or a note leaves it empty on purpose.
+let currentPicks = [], activePick = -1;
+
+function openSuggestions(){
+  $('suggestions').hidden = false;
+  $('name').setAttribute('aria-expanded', 'true');
+}
+function clearActive(){
+  activePick = -1;
+  $('name').removeAttribute('aria-activedescendant');
+}
+const closeSuggestions = () => {
+  $('suggestions').hidden = true;
+  $('name').setAttribute('aria-expanded', 'false');
+  currentPicks = [];
+  clearActive();
+};
+function setActive(i){
+  const opts = $('suggestions').querySelectorAll('[data-pick]');
+  if(!opts.length) return clearActive();
+  activePick = (i + opts.length) % opts.length; // wraps at both ends
+  opts.forEach((o, k) => {
+    const on = k === activePick;
+    o.classList.toggle('is-active', on);
+    o.setAttribute('aria-selected', String(on));
+  });
+  $('name').setAttribute('aria-activedescendant', opts[activePick].id);
+  opts[activePick].scrollIntoView({block:'nearest'});
+}
+function suggestionSkeleton(){
+  currentPicks = []; clearActive();
+  $('suggestions').innerHTML = ['52%','66%','44%'].map(w =>
+    `<div class="skeleton-row"><div class="skeleton" style="width:${w}"></div>`
+    + `<div class="skeleton" style="width:28%"></div></div>`).join('');
+  openSuggestions();
+}
+function suggestionNote(text){
+  currentPicks = []; clearActive();
+  $('suggestions').innerHTML = `<p class="sugg-note">${esc(text)}</p>`;
+  openSuggestions();
+}
+// Redrawn every time a source lands, so the highlight is restored by identity
+// rather than by index: a late result must not move what Enter is pointing at.
+function renderPicks(picks, pending, failures){
+  const held = activePick >= 0 ? currentPicks[activePick] : null;
+  currentPicks = picks.slice().sort((a, b) => a.rank - b.rank || a.tier - b.tier).slice(0, 10);
+  const tail = pending
+    ? `<p class="sugg-note">Still checking ${pending} more source${pending === 1 ? '' : 's'}.</p>`
+    : failures ? `<p class="sugg-note">Some sources did not answer.</p>` : '';
+  $('suggestions').innerHTML = currentPicks.map((p, i) => `
+      <button class="suggestion" type="button" role="option" id="sugg-${i}" tabindex="-1"
+        aria-selected="false" data-pick="${i}">
+        <span class="body">
+          <svg class="icon" aria-hidden="true"><use href="#i-${KIND_ICON[p.kind]}"/></svg>
+          <span><b>${esc(p.name)}</b><small>${esc(p.note)}</small></span>
+        </span>
+        <span class="tail">${p.hours ? esc(p.hours + 'h') : 'Add'}</span>
+      </button>`).join('') + tail;
+  openSuggestions();
+  $('suggestions').querySelectorAll('[data-pick]').forEach(b =>
+    b.onclick = () => choosePick(currentPicks[+b.dataset.pick]));
+  const back = held ? currentPicks.indexOf(held) : -1;
+  if(back >= 0) setActive(back); else clearActive();
+}
+
+async function choosePick(pick){
+  if(!pick) return;
+  const typed = $('name').value;
+  closeSuggestions();
+  searchAbort = null; // Resolving a pick is its own errand; the next search must not kill it.
+  $('name').value = ''; syncAddButton();
+  try{
+    let hours = pick.hours, known = hours != null;
+    let pod = null;
+    if(pick.showId) { hours = await showHours(pick.showId); known = true; }
+    else if(pick.podId){ pod = await podcastProfile(pick.podId); hours = podcastHours(pod); known = true; }
+    else if(pick.qid){ const r = await wikidataHours(pick.qid, pick.kind); hours = r.hours; known = r.known; }
+    // A known-title game beats Wikidata's blank: check the local table before defaulting.
+    if(!known && pick.kind === 'Game'){
+      const hit = hltbGames.find(g => loose(g.name) === loose(pick.name));
+      if(hit){ hours = hit.main; known = true; }
+    }
+    addToQueue(pick.name, hours, pick.kind, pod);
+    if(!known) flagEstimate(pick.name);
+  }catch(e){
+    $('name').value = typed; syncAddButton();
+    suggestionNote('That lookup failed. Set the hours yourself and press Add.');
+  }
+}
+
+// An unknown runtime gets said out loud rather than quietly passed off as data.
+function flagEstimate(name){
+  const note = $('estimateNote');
+  note.textContent = `No runtime on record for ${name}. It went in as a placeholder — edit the hours on its row.`;
+  note.hidden = false;
+  clearTimeout(flagEstimate.t);
+  flagEstimate.t = setTimeout(() => { note.hidden = true; }, 9000);
+}
+
+let searchTimer, searchSeq = 0;
+function syncAddButton(){ $('add').disabled = !$('name').value.trim(); }
+
+$('name').oninput = () => {
+  clearTimeout(searchTimer);
+  syncAddButton();
+  const q = $('name').value.trim();
+  closeSuggestions();
+  if(q.length < 2) return;
+  searchTimer = setTimeout(() => {
+    const seq = ++searchSeq; // A slow earlier query must not overwrite a newer one.
+    searchAbort?.abort();    // and it must not keep a socket open either.
+    searchAbort = new AbortController();
+    suggestionSkeleton();
+
+    // Tier order is the priority order: a source that knows the real runtime
+    // outranks one that only knows the name. Results are painted as they land,
+    // so the fastest source is on screen while the slow ones are still going.
+    const sources = [
+      () => Promise.resolve(gameSuggestions(q)),
+      () => findRawgGames(q),
+      () => findShows(q),
+      () => findPodcasts(q),
+      () => findWikidata(q),
+      () => findBooks(q)
+    ];
+    const picks = [], byKey = new Map();
+    let pending = sources.length, failures = 0;
+
+    const merge = (results, tier) => {
+      for(const p of results){
+        const key = `${p.kind}:${loose(p.name)}`;
+        p.rank = relevance(p.name, q);
+        p.tier = tier;
+        const prev = byKey.get(key);
+        if(prev && prev.tier <= tier) continue;        // already covered, by an equal or better source
+        if(prev) picks[picks.indexOf(prev)] = p;       // a better source answered late; upgrade in place
+        else picks.push(p);
+        byKey.set(key, p);
+      }
+    };
+    const paint = () => {
+      if(seq !== searchSeq) return;                    // a newer query owns the list now
+      if(picks.length) return renderPicks(picks, pending, failures);
+      if(pending) return;                              // nothing yet, but someone is still looking
+      // A dead network and a genuine miss are different answers. Say which.
+      suggestionNote(failures
+        ? `Could not reach the lookup services. Set the hours and press Add.`
+        : `Nothing found for "${q}". Set the hours and press Add.`);
+    };
+
+    sources.forEach((run, tier) => {
+      run().then(r => merge(r || [], tier), () => { failures++; })
+           .finally(() => { pending--; paint(); });
+    });
+  }, 250);
+};
+
+// The one thing everybody tries first. Enter takes the highlighted row, or the
+// top hit if nothing is highlighted, or the typed text with the hours beside it.
+$('name').onkeydown = e => {
+  const open = !$('suggestions').hidden && currentPicks.length > 0;
+  if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    if(!open) return;
+    e.preventDefault();
+    setActive(activePick + (e.key === 'ArrowDown' ? 1 : -1));
+  }else if(e.key === 'Enter'){
+    e.preventDefault();
+    if(open) choosePick(currentPicks[activePick >= 0 ? activePick : 0]);
+    else if(!$('add').disabled) $('add').click();
+  }else if(e.key === 'Escape' && !$('suggestions').hidden){
+    e.preventDefault();
+    closeSuggestions();
+  }
+};
+$('amount').onkeydown = e => { if(e.key === 'Enter' && !$('add').disabled){ e.preventDefault(); $('add').click(); } };
+$('kind').onchange = closeSuggestions;
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeSuggestions(); });
+document.addEventListener('click', e => { if(!e.target.closest('.add')) closeSuggestions(); });
+$('startDate').onchange = () => {
+  // A date before today is silently pulled forward, so show the value actually in use.
+  $('startDate').value = toDateValue(startDate());
+  render();
+};
+$('startToday').onclick = () => { $('startDate').value = toDateValue(new Date()); render(); };
+$('jobToday').onclick = () => { $('jobStart').value = toDateValue(new Date()); render(); };
+$('ytAmount').oninput = render;
+$('ytPerDay').onclick = () => setYtUnit('day', {convert:true});
+$('ytPerWeek').onclick = () => setYtUnit('week', {convert:true});
+$('jobHours').oninput = render;
+$('jobStart').onchange = () => { $('jobStart').value = toDateValue(readJob().date); render(); };
+$('sleepStart').onchange = render;
+$('sleepEnd').onchange = render;
+$('paceInput').oninput = render;
+$('add').onclick = () => {
+  if(addToQueue($('name').value.trim(), +$('amount').value, $('kind').value)){ $('name').value = ''; syncAddButton(); }
+  closeSuggestions();
+};
+document.querySelectorAll('.examples button').forEach(b => b.onclick = () =>
+  addToQueue(b.dataset.name, +b.dataset.hours, b.dataset.kind));
+
+document.body.classList.add('is-revealed');
+$('startDate').min = $('jobStart').min = toDateValue(new Date());
+$('startDate').value = $('jobStart').value = toDateValue(new Date());
+loadState();
+render();
+booted = true;
+setInterval(renderCountdown, 1000); // The clock shows seconds; a 30s render would visibly stall it.
+setInterval(render, 30000);
+</script>
+</body>
+</html>
