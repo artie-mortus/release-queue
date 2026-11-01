@@ -2,7 +2,7 @@
 
 ## Starting point and plan
 
-Work began from the current working files, not HEAD. `git status --short` showed an edited `index.html` and untracked `.tastemaker/`, `AGENTS.md`, `CONTEXT.md`, `README.md`, `docs/`, `test-results/`, `tests/`, and `time-bridge-core.js`. The existing index diff was 2,497 additions and 408 deletions. Its diff and copies of the initial runtime and tests are preserved under `/tmp/gta-simplification-start*`. No existing work is being reset.
+Work began from the current working files, not HEAD. `git status --short` showed an edited `index.html` and untracked `AGENTS.md`, `CONTEXT.md`, `README.md`, `docs/`, `test-results/`, `tests/`, and `time-bridge-core.js`. The existing index diff was 2,497 additions and 408 deletions. Its diff and copies of the initial runtime and tests are preserved under `/tmp/gta-simplification-start*`. No existing work is being reset.
 
 The runtime starts at 253,607 bytes and 4,678 lines across `index.html` and `time-bridge-core.js`. This includes HTML, inline CSS, catalogs, and JavaScript. Runtime and test sizes will be reported separately.
 

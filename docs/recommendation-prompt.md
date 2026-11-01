@@ -4,7 +4,7 @@ Added Copy recommendation prompt beside Export queue and Load file. The copied t
 
 The button takes a fresh calculation snapshot and commits a focused remaining-time edit before copying. Copying leaves queue order and Undo history alone; a pending estimate edit still creates its normal checkpoint. It first uses the browser clipboard API, then a selected textarea with the legacy copy command. If both are blocked, the textarea stays visible and selected for manual copying. Successful fallback copying returns focus to the button.
 
-The existing native button styles and palette were reused. Mobile backup-button padding is 8px. Controls stay at least 44px tall and wrap when needed. Collapsed queue dimensions are unchanged. The Tastemaker decision log gained a pending-review entry; the style lock and personal profile were not changed.
+The existing native button styles and palette were reused. Mobile backup-button padding is 8px. Controls stay at least 44px tall and wrap when needed. Collapsed queue dimensions are unchanged.
 
 Verification completed on 2026-10-06:
 

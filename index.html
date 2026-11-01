@@ -24,12 +24,6 @@ document.title = APP_NAME;
 </script>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <style>
-/* tastemaker · page: app-shell (sidebar library, plan, completed, settings)
-   mood: calm / Apple-inspired graphite · palette: restrained pink + aqua over charcoal
-   type: locally bundled Inter variable · icons: Material Symbols Rounded + Heroicons solid, embedded locally · motion: dependency-free app-shell track
-   contrast: check_contrast.py --matrix; opaque reading surfaces, dark labels on neon fills
-   critique: ShowTell 4 · Phil 5 · Hier 5 · Spec 4 · Restr 5 · Var 5 */
-
 /* Inter 4.1, SIL Open Font License. Bundled for offline and direct-file use. */
 @font-face{
   font-family:'Inter';
@@ -570,7 +564,7 @@ summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 }
 /* Workspace redesign: persistent navigation, queue-first library, native dialogs.
    Existing graphite color contract and locally bundled Inter. No runtime dependencies.
-   App motion: 160ms dialog/panel feedback. Critique: ShowTell 4, Phil 5, Hier 5, Spec 4, Restr 5, Var 5. */
+   App motion: 160ms dialog/panel feedback. */
 :root{--sidebar-width:224px;--dur-slow:240ms}
 html{scroll-padding-top:88px}
 body{font-size:14px}

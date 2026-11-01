@@ -41,5 +41,3 @@ The new coverage suite checks timeline agreement with the reduced pace, gap and 
 Desktop and phone screenshots from the browser suites were inspected. Expanded scenario layouts were checked from 320 to 1920 pixels, with no document overflow. The compact layout check keeps the first row within its existing mobile threshold. Anti-slop and motion scanners and `git diff --check` passed.
 
 Browser tests used blocked or controlled external responses. Live provider availability was not verified. Collaborative browser navigation opened the app, but its snapshot/evaluation calls repeatedly failed; visual verification used the existing headless regression suites' captures.
-
-The project style lock and decision log record the rejected road design and the implemented controls awaiting visual review. The personal taste profile was unchanged.

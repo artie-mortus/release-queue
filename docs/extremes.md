@@ -97,7 +97,7 @@ A 7-by-7 matrix already requires 49 forecasts before runtime variants. Today's d
 
 ## Visual direction for the workbench
 
-Use the existing tokens: graphite `#101113`, surface `#1b1c1f`, violet `#282432`, pink `#f5a4ce`, lavender `#c4b5fd`, and peach `#ffbd9b`. Keep Inter for display, text, and tabular figures. Retain the selected icon assets. This is a compact proposed token set, not an update to `.tastemaker/style-lock.md`.
+Use the existing tokens: graphite `#101113`, surface `#1b1c1f`, violet `#282432`, pink `#f5a4ce`, lavender `#c4b5fd`, and peach `#ffbd9b`. Keep Inter for display, text, and tabular figures. Retain the selected icon assets.
 
 Left-align the queue and comparison labels. Use one calendar chart as the distinctive element. On desktop, place proposed changes beside their effect; stack them on phones. Draw known waiting gaps separately from the final shortfall. A launch-focused chart should show today through release, with a separate indication of content remaining afterward. A huge post-launch backlog should not squeeze the actual wait into an unreadable sliver, as stretching the current axis to the full queue can do.
 

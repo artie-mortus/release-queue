@@ -105,7 +105,7 @@ Assumed mood: the existing playful, compact Vice City direction. The approved ne
 | Major | Gate 44, truthful chart geometry | Calendar segment endpoints use the full pace while the forecast deducts recurring YouTube. `index.html:972`. | Draw actual scheduled dates and show recurring time separately. |
 | Minor | Gate 45, understandable input states | The visible add form shows an unlabeled-to-sighted-users number initialized to 10 and uses the media selector for both filtering and manual entry. `index.html:646`. Screen-reader labels do exist. | Show a visible estimate label and make the selected add mode clear. |
 
-Visual audit total: 0 critical, 3 major, 1 minor. This is a focused review, not a claim that all accessibility or contrast checks passed. No style lock, decision log, or personal taste profile was changed.
+Visual audit total: 0 critical, 3 major, 1 minor. This is a focused review, not a claim that all accessibility or contrast checks passed.
 
 ## Architecture worth keeping, and what to replace
 
