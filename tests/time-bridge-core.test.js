@@ -377,6 +377,45 @@ test('game hours can exceed an estimate and resume when the total increases', ()
   }
 });
 
+test('game completion lookup reads only the matching main-story estimate', () => {
+  const page = (time, name = 'Example Game', id = '123') => `Title: How long is ${name}? | HowLongToBeat
+URL Source: https://howlongtobeat.com/game/${id}
+#### HowLongToBeat
+##### 79 Hours
+#### Main Story
+##### ${time}
+#### Main + Sides
+##### 84½ Hours
+#### Completionist
+##### 196 Hours`;
+  const parse = text => core.parseGameMainStory(text, '123', ['Example Game']);
+  assert.equal(parse(page('51 Hours')), 51);
+  assert.equal(parse(page('8½ Hours')), 8.5);
+  assert.equal(parse(page('1¼ Hours')), 1.3);
+  assert.equal(parse(page('45 Mins')), 0.8);
+  assert.equal(parse(page('1 Hour 30 Minutes')), 1.5);
+  for(const time of ['--', '0 Hours', '50–60 Hours', '100001 Hours', 'Infinity Hours', '30']){
+    assert.equal(parse(page(time)), null, time);
+  }
+  assert.equal(parse(page('50 Hours', 'Example Game Remastered')), null);
+  assert.equal(parse(page('50 Hours', 'Example Game', '456')), null);
+  assert.equal(parse(page('50 Hours').replace('Main Story', 'Single-Player')), null);
+  assert.equal(core.parseGameMainStory(page('50 Hours', 'Alias'), '123', ['Example Game','Alias']), 50);
+});
+
+test('verified game sources survive progress and portable saves', () => {
+  const game = {total:51,played:20,sourceUrl:'https://howlongtobeat.com/game/27100',checkedOn:'2026-11-01'};
+  const detail = value => `game=${encodeURIComponent(JSON.stringify(value))}`;
+  assert.deepEqual(core.parseGameCell(detail(game)), game);
+  assert.equal(core.gameProgress(game,'played',21).sourceUrl, game.sourceUrl);
+  for(const change of [{sourceUrl:'https://evil.example/game/27100'}, {checkedOn:'2026-02-30'}, {sourceUrl:undefined}]){
+    assert.equal(core.parseGameCell(detail({...game,...change})), null);
+  }
+  const parsed = core.parseStateText(portableSave(`| Game | Game | 31 | ${detail(game)} | |`));
+  assert.equal(parsed.ok,true);
+  assert.deepEqual(parsed.queue[0].game,game);
+});
+
 test('game saves preserve played hours including zero remaining and reject malformed details', () => {
   const game = {total:50, played:65};
   const detail = `game=${encodeURIComponent(JSON.stringify(game))}`;

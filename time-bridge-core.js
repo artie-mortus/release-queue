@@ -626,6 +626,23 @@
     return Math.max(0, +(game.total - game.played).toFixed(1));
   }
 
+  // Read the completion category explicitly. The combined, side-content and
+  // multiplayer figures on the same page are different planning quantities.
+  function parseGameMainStory(text, id, names){
+    if(typeof text !== 'string' || !/^[1-9]\d{0,8}$/.test(String(id)) || !Array.isArray(names)) return null;
+    const title = text.match(/^Title: How long is (.+)\? \| HowLongToBeat\s*$/m)?.[1];
+    const source = text.match(/^URL Source: (\S+)\s*$/m)?.[1];
+    if(!title || !names.some(name => loose(name) === loose(title))
+      || source !== `https://howlongtobeat.com/game/${id}`) return null;
+    const value = text.match(/^#{1,6}\s+Main Story\s*\r?\n\s*#{1,6}\s+([^\r\n]+)/m)?.[1]
+      .trim().replace(/(\d)([½¼¾])/g, (_, n, fraction) => String(+n + ({'½':0.5,'¼':0.25,'¾':0.75}[fraction])));
+    if(!value) return null;
+    const time = value.match(/^(?:(\d+(?:\.\d+)?)\s*(?:Hours?|Hrs?))?(?:\s*(\d+(?:\.\d+)?)\s*(?:Minutes?|Mins?))?$/i);
+    if(!time || (!time[1] && !time[2])) return null;
+    const hours = Number(time[1] || 0) + Number(time[2] || 0) / 60;
+    return hours > 0 && hours <= MAX_ITEM_HOURS ? Math.max(MIN_ITEM_HOURS, +hours.toFixed(1)) : null;
+  }
+
   function gameProgress(game, field, value){
     if(!['played','total'].includes(field) || !String(value).trim()) return null;
     const updated = {...game, [field]:Number(value)};
@@ -645,7 +662,12 @@
     try{
       if(!detail.startsWith('game=')) return null;
       const game = JSON.parse(decodeURIComponent(detail.slice(5)));
-      return remainingGameHours(game) === null ? null : {total:game.total, played:game.played};
+      if(remainingGameHours(game) === null) return null;
+      const source = game.sourceUrl !== undefined || game.checkedOn !== undefined;
+      if(source && (typeof game.sourceUrl !== 'string' || !/^https:\/\/howlongtobeat\.com\/game\/[1-9]\d{0,8}$/.test(game.sourceUrl)
+        || !validDateValue(game.checkedOn))) return null;
+      return {total:game.total, played:game.played,
+        ...(source ? {sourceUrl:game.sourceUrl, checkedOn:game.checkedOn} : {})};
     }catch(error){ return null; }
   }
 
@@ -1006,6 +1028,6 @@ ${stateRows(completed) || '| (empty) | | | | |'}
     playlistHours, remainingPlaylistHours, nextPlaylistIndex, refreshedPlaylist, parsePlaylistReader,
     estimateLightNovelPages, bookPageCount, prepareBookSuggestions, prepareLightNovelSuggestions,
     calculateSchedule, queuePositionAtHours, forecastTotals, forecastQueue, previewAppend, adjustPodcastCatalogCount, parsePodCell, parseBookCell, parsePlaylistUrl, parseYouTubeCell,
-    remainingGameHours, gameProgress, showProgress, parseGameCell, parseShowCell, serializeState, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, validateReleaseTarget,queueItemsMatch
+    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, parseShowCell, serializeState, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, validateReleaseTarget,queueItemsMatch
   };
 });

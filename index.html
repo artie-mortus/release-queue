@@ -1202,7 +1202,7 @@ const {MIN_ITEM_HOURS, MAX_ITEM_HOURS, DEFAULT_BOOK_PAGES_PER_HOUR, LIGHT_NOVEL_
        loose, relevance, suggestionRank, clampNumber, estimateBookHours, prepareBookSuggestions,
        prepareLightNovelSuggestions, calculateSchedule, adjustPodcastCatalogCount, playlistHours,
        remainingPlaylistHours, nextPlaylistIndex, refreshedPlaylist, parsePlaylistReader, parseStateText, parseWebNovelMetadata,
-       remainingGameHours, gameProgress, showProgress, parseDateValue, parsePlaylistUrl, bookProgressMeta, remainingHoursForBook,
+       remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseDateValue, parsePlaylistUrl, bookProgressMeta, remainingHoursForBook,
        showRemainingHours, adjustedHours, syncItemHours, resolveItemHoursEdit, forecastTotals, forecastQueue, webStoryPlatform, validateReleaseTarget,queueItemsMatch} = TimeBridgeCore;
 const KIND_ICON = {Game:'game-controller', Show:'television', Movie:'film-reel', Book:'book',
                    Podcast:'microphone-stage', YouTube:'youtube-logo'};
@@ -1898,8 +1898,10 @@ function gameProgressHtml(item, index){
       value="${game.played}" data-game-played="${index}" aria-label="Hours played for ${esc(item.name)}">h</label>
     <label>Total <input type="number" inputmode="decimal" min="${MIN_ITEM_HOURS}" max="${MAX_ITEM_HOURS}" step="0.1"
       value="${game.total}" data-game-total="${index}" aria-label="Total estimated hours for ${esc(item.name)}">h</label>
+    <button type="button" data-game-lookup="${index}" ${loadingItems.has(item) ? 'disabled' : ''}>${loadingItems.has(item) ? 'Looking up…' : 'Update main-story time'}</button>
+    ${game.sourceUrl ? `<a data-game-source="${index}" href="${esc(game.sourceUrl)}" target="_blank" rel="noopener noreferrer">View time source</a>` : ''}
     <button type="button" data-game-finish="${index}" aria-label="Mark ${esc(item.name)} finished">Finished</button>
-  </span>`;
+  </span>${actionFeedbackHtml(item, index)}`;
 }
 
 function showProgressHtml(item, index){
@@ -2044,6 +2046,7 @@ function setGameProgress(index, field, value){
     if(field === 'total'){
       item.estimateNeeded = false;
       item.runtimeSource = 'Your total runtime estimate'; item.runtimeBasis = 'manual';
+      delete updated.sourceUrl; delete updated.checkedOn;
     }
     item.game = updated;
     item.hours = remainingGameHours(updated);
@@ -2215,6 +2218,36 @@ function loadingButton(item, action, label){
   const button = $('queue').querySelector(`[data-${action}="${queue.indexOf(item)}"]`);
   if(button){ button.disabled = loadingItems.has(item); button.textContent = label; }
 }
+async function updateGameMainStory(item){
+  if(!item?.game || loadingItems.has(item)) return;
+  const {total, sourceUrl} = item.game, basis = item.runtimeBasis;
+  loadingItems.add(item);
+  setActionFeedback(item, 'Looking up main-story completion time…');
+  loadingButton(item, 'game-lookup', 'Looking up…');
+  try{
+    const result = await gameMainStoryProfile({...item,qid:item.catalogId?.match(/^wikidata:(Q\d+)$/)?.[1]});
+    if(!queue.includes(item)) return;
+    if(item.game.total !== total || item.game.sourceUrl !== sourceUrl || item.runtimeBasis !== basis){
+      setActionFeedback(item, 'Your total changed during lookup. Your estimate was kept.');
+      return;
+    }
+    loadingItems.delete(item);
+    commitQueueChange(`Updated main-story time for ${item.name}`, () => {
+      item.game = {...result.game, played:item.game.played};
+      item.hours = remainingGameHours(item.game);
+      item.runtimeSource = result.runtimeSource; item.runtimeBasis = 'estimated';
+      if(result.catalogId) item.catalogId = result.catalogId;
+      item.estimateNeeded = false;
+      delete item.runtimeScale;
+      actionFeedback.set(item, `Main story: ${result.hours}h total, ${item.hours}h left after ${item.game.played}h played.`);
+    });
+  }catch(error){
+    if(queue.includes(item)) setActionFeedback(item, `${error.message} Your total and played hours were kept. Edit Total or try again.`);
+  }finally{
+    loadingItems.delete(item);
+    if(queue.includes(item)) loadingButton(item, 'game-lookup', 'Update main-story time');
+  }
+}
 async function loadShow(item){
   if(!item || loadingItems.has(item)) return;
   loadingItems.add(item);
@@ -2299,6 +2332,7 @@ $('queue').addEventListener('click', event => {
   if(button.hasAttribute('data-remove')) removeItem(index);
   else if(button.hasAttribute('data-finish')) finishItem(index);
   else if(button.hasAttribute('data-game-finish')) finishItem(index, {game:true});
+  else if(button.hasAttribute('data-game-lookup')) updateGameMainStory(item);
   else if(button.hasAttribute('data-reset-estimate')) resetEstimate(index);
   else if(button.hasAttribute('data-show-load')) loadShow(item);
   else if(button.hasAttribute('data-youtube-track')) loadPlaylist(item);
@@ -2759,15 +2793,16 @@ $('importFile').onchange = async () => {
      books   Open Library    ESTIMATE      (median page count / reading rate)
      light   AniList         ESTIMATE      (known volumes x 250 pages / reading rate)
      web     Wikimedia       unknown       (identification only; you set the hours)
-     games   local table     real-ish      (HowLongToBeat main-story times)
-             RAWG            real          (average playtime — needs a free key)
+     games   HowLongToBeat   ESTIMATE      (main-story completion via Jina Reader)
+             local table     rough fallback (unverified main-story estimates)
+             RAWG            unknown       (identification; playtime is not completion)
              Wikidata        unknown       (identification only; you set the hours)
 
    Wikidata has no playtime property for games and its P136 genres are too
    noisy to derive one from, so an unknown game is added as an unknown rather
    than dressed up with a fabricated number.                               */
 
-const RAWG_KEY = '';         // Free key from rawg.io/apidocs gives real playtimes for any game.
+const RAWG_KEY = '';         // Optional title discovery. Activity playtime is not a completion estimate.
 const WD = 'https://www.wikidata.org/w/api.php?origin=*&format=json&';
 const WP = 'https://en.wikipedia.org/w/api.php?origin=*&format=json&';
 const ANILIST = 'https://graphql.anilist.co';
@@ -2869,7 +2904,7 @@ function gameSuggestions(query){
     .sort((a, b) => a.matchScore - b.matchScore)
     .slice(0, 5)
     .map(g => ({kind:'Game', name:g.name, aliases:g.aliases || [], hours:g.main, estimated:true,
-      sourceRank:g.matchScore, note:`Local estimate · about ${g.main}h main story`}));
+      sourceRank:g.matchScore, note:`Unverified local estimate · about ${g.main}h main story · checks source on add`}));
 }
 
 async function findShows(query, signal = null){
@@ -3285,8 +3320,8 @@ async function findWikidata(query, signal = null){
     // The local table beats Wikidata on hours, so check it before offering a blank.
     const known = kind === 'Game' && hltbGames.find(g => loose(g.name) === loose(r.label));
     hits.push({kind, name:r.label, aliases:r.aliases || [], matchText:r.label,
-      sourceRank, qid:r.id, hours: known ? known.main : null,
-      note: known ? `HowLongToBeat · ${known.main}h main story`
+      sourceRank, qid:r.id, hours: known ? known.main : null, estimated:kind === 'Game',
+      note: known ? `Unverified local estimate · about ${known.main}h main story · checks source on add`
         : `Wikidata · ${kind === 'Book' ? (/light novel/i.test(r.description) ? 'light novel · ' : 'web fiction · ') : ''}${r.description}`});
     if(hits.length >= 5) break;
   }
@@ -3297,12 +3332,43 @@ async function findRawgGames(query, signal = null){
   if(!RAWG_KEY) return [];
   const data = await jget(`https://api.rawg.io/api/games?key=${RAWG_KEY}&page_size=4&search=`
     + encodeURIComponent(query), signal);
-  return (data.results || []).filter(g => g.playtime).map(g => ({
-    kind:'Game', name:g.name, hours:g.playtime, note:`RAWG · ${g.playtime}h average playtime`
+  return (data.results || []).map(g => ({
+    kind:'Game', name:g.name, hours:null, estimated:true, note:'RAWG · main-story time checked on add'
   }));
 }
 
 /* ---- resolving a pick to real hours ------------------------------------ */
+async function gameMainStoryProfile(pick){
+  let id = pick.game?.sourceUrl?.match(/^https:\/\/howlongtobeat\.com\/game\/([1-9]\d{0,8})$/)?.[1];
+  let qid = pick.qid;
+  const names = [pick.name,...(pick.aliases || [])];
+  if(!id){
+    if(!qid){
+      const matches = (await findWikidata(pick.name)).filter(hit => hit.kind === 'Game'
+        && names.some(name => loose(hit.name) === loose(name)));
+      if(matches.length !== 1) throw new Error('Could not identify an exact game match.');
+      qid = matches[0].qid;
+    }
+    const data = await jget(WD + 'action=wbgetentities&props=claims&ids=' + encodeURIComponent(qid));
+    const claims = (data.entities?.[qid]?.claims?.P2816 || []).filter(claim => claim.rank !== 'deprecated');
+    const preferred = claims.filter(claim => claim.rank === 'preferred');
+    const ids = [...new Set((preferred.length ? preferred : claims).map(claim => claim.mainsnak?.datavalue?.value)
+      .filter(value => typeof value === 'string' && /^[1-9]\d{0,8}$/.test(value)))];
+    if(ids.length !== 1) throw new Error('No unambiguous main-story source is listed for this game.');
+    id = ids[0];
+  }
+  const sourceUrl = `https://howlongtobeat.com/game/${id}`;
+  // Public completion data, read through the same browser-compatible reader
+  // as story and playlist lookups. No private credential or backend is used.
+  const text = await fetchStoryText(`https://r.jina.ai/${sourceUrl}`, {'X-No-Cache':'true','X-Engine':'direct'}, null, 20000);
+  const hours = parseGameMainStory(text, id, names);
+  if(hours === null) throw new Error('The source did not provide a matching main-story time.');
+  const checkedOn = toDateValue(new Date());
+  return {hours, game:{total:hours,played:0,sourceUrl,checkedOn},
+    runtimeSource:`HowLongToBeat · main story · retrieved ${checkedOn}`, runtimeBasis:'estimated',
+    ...(qid ? {catalogId:`wikidata:${qid}`} : {})};
+}
+
 async function wikidataHours(qid, kind){
   if(kind === 'Movie'){
     const e = await jget(WD + 'action=wbgetentities&props=claims&ids=' + qid);
@@ -3430,22 +3496,33 @@ async function choosePick(pick){
   $('name').value = ''; syncAddButton();
   try{
     let hours = pick.hours, known = hours != null;
-    let pod = null, book = pick.book || null, show = null;
-    if(pick.showId) { show = await showProfile(pick.showId); hours = showRemainingHours(show); known = true; }
+    let pod = null, book = pick.book || null, show = null, gameRuntime = null, gameFallback = false;
+    if(pick.kind === 'Game'){
+      $('estimateNote').textContent = `Looking up main-story completion time for ${pick.name}…`;
+      $('estimateNote').hidden = false;
+      try{
+        gameRuntime = await gameMainStoryProfile(pick);
+        hours = gameRuntime.hours; known = true;
+      }catch(error){
+        const local = hltbGames.find(g => [g.name,...(g.aliases || [])].some(name => loose(name) === loose(pick.name)));
+        hours = local ? local.main : 10; known = !!local; gameFallback = true;
+        gameRuntime = {runtimeSource:local ? 'Unverified local main-story estimate · lookup unavailable' : 'Main-story time unavailable',runtimeBasis:'estimated'};
+      }
+      $('estimateNote').hidden = true;
+    }
+    else if(pick.showId) { show = await showProfile(pick.showId); hours = showRemainingHours(show); known = true; }
     else if(pick.podId){ pod = await podcastProfile(pick.podId); hours = podcastHours(pod); known = true; }
     else if(pick.qid){ const r = await wikidataHours(pick.qid, pick.kind); hours = r.hours; known = r.known; }
-    // A known-title game beats Wikidata's blank: check the local table before defaulting.
-    if(!known && pick.kind === 'Game'){
-      const hit = hltbGames.find(g => loose(g.name) === loose(pick.name));
-      if(hit){ hours = hit.main; known = true; }
-    }
     // Missing page data should not make a valid book impossible to add. Two
     // hours is a visible placeholder and the row stays editable.
     if(!known && pick.kind === 'Book') hours = 2;
-    const runtime = pick.kind === 'Game' ? {runtimeSource:'Approximate main-story runtime', runtimeBasis:'estimated'}
+    const runtime = pick.kind === 'Game' ? gameRuntime
       : pick.kind === 'Movie' && known ? {runtimeSource:'Wikidata runtime', runtimeBasis:'measured'} : null;
     if(!addToQueue({name:pick.name, hours, kind:pick.kind, pod, book, show, estimateNeeded:!known,catalogId:catalogIdForPick(pick), ...(runtime || {})},
-      {onAdded:() => { if($('name').value === typed){ $('name').value = ''; syncAddButton(); } }})){
+      {onAdded:() => {
+        if($('name').value === typed){ $('name').value = ''; syncAddButton(); }
+        if(gameFallback && known) notifyAction(`Added ${pick.name} with an unverified local estimate of ${hours}h. Main-story lookup was unavailable; review Total.`,queue.at(-1));
+      }})){
       if(!$('name').value){ $('name').value = typed; syncAddButton(); }
       return;
     }

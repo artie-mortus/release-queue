@@ -100,7 +100,8 @@ Successful lookup responses are cached in the current tab for 15 minutes, with u
 
 Runtime quality varies by source:
 
-- Local game entries use approximate main-story times.
+- Game additions resolve an exact title through Wikidata's HowLongToBeat identifier, then read the **Main Story** completion estimate through Jina Reader. Side-content, completionist, combined, and RAWG activity playtimes are excluded. The source link and retrieval date are saved with the game. These are player-reported estimates, so personal pace can differ. Jina Reader receives the public game-page URL, with no account or private API key required.
+- Local game search previews remain explicitly labeled, unverified main-story estimates until the source lookup completes on Add. If lookup is blocked, a local title keeps its clearly labeled rough estimate; other games receive an **Estimate needed** placeholder. All totals remain editable. Existing queues keep their saved totals until you click **Update main-story time** on a game. That action preserves hours played, recalculates `max(0, total - played)`, supports Undo, and leaves your total intact on failure or if you edit it while lookup is pending. Editing Total yourself removes the source attribution. Source details and progress survive reload, export, and import.
 - TVMaze totals episodes available by the configured release date and estimates isolated missing runtimes from the show's average.
 - Podcast totals exclude future-dated feed entries, remove obvious promos, and project active shows through release day.
 - Wikidata supplies movie runtimes but only identifies games and notable web fiction without known playtimes. Wikipedia fills some web-serial discovery gaps, such as ambiguous titles.
@@ -159,6 +160,7 @@ NODE_PATH=/tmp/release-queue-check/node_modules node tests/quick-settings.test.c
 NODE_PATH=/tmp/release-queue-check/node_modules node tests/icons.test.cjs
 NODE_PATH=/tmp/release-queue-check/node_modules node tests/coverage.test.cjs
 NODE_PATH=/tmp/release-queue-check/node_modules node tests/game-picker.test.cjs
+NODE_PATH=/tmp/release-queue-check/node_modules node tests/game-lengths.test.cjs
 NODE_PATH=/tmp/release-queue-check/node_modules node tests/rename-compatibility.test.cjs
 NODE_PATH=/tmp/release-queue-check/node_modules node tests/recommendation-prompt.test.cjs
 NODE_PATH=/tmp/release-queue-check/node_modules node tests/availability-additions.test.cjs
