@@ -1,0 +1,87 @@
+[
+  {
+    "symbol": "book",
+    "family": "heroicons",
+    "url": "https://raw.githubusercontent.com/tailwindlabs/heroicons/master/optimized/24/solid/book-open.svg"
+  },
+  {
+    "symbol": "film-reel",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/movie/materialsymbolsrounded/movie_fill1_24px.svg"
+  },
+  {
+    "symbol": "flag-checkered",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/sports_score/materialsymbolsrounded/sports_score_fill1_24px.svg"
+  },
+  {
+    "symbol": "game-controller",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/stadia_controller/materialsymbolsrounded/stadia_controller_fill1_24px.svg"
+  },
+  {
+    "symbol": "magnifying-glass",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/search/materialsymbolsrounded/search_fill1_24px.svg"
+  },
+  {
+    "symbol": "moon",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/bedtime/materialsymbolsrounded/bedtime_fill1_24px.svg"
+  },
+  {
+    "symbol": "plus",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/add/materialsymbolsrounded/add_fill1_24px.svg"
+  },
+  {
+    "symbol": "television",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/tv/materialsymbolsrounded/tv_fill1_24px.svg"
+  },
+  {
+    "symbol": "dots-six-vertical",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/drag_indicator/materialsymbolsrounded/drag_indicator_fill1_24px.svg"
+  },
+  {
+    "symbol": "x",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/close/materialsymbolsrounded/close_fill1_24px.svg"
+  },
+  {
+    "symbol": "youtube-logo",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/smart_display/materialsymbolsrounded/smart_display_fill1_24px.svg"
+  },
+  {
+    "symbol": "microphone-stage",
+    "family": "heroicons",
+    "url": "https://raw.githubusercontent.com/tailwindlabs/heroicons/master/optimized/24/solid/microphone.svg"
+  },
+  {
+    "symbol": "queue",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/format_list_bulleted/materialsymbolsrounded/format_list_bulleted_fill1_24px.svg"
+  },
+  {
+    "symbol": "calendar",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/calendar_month/materialsymbolsrounded/calendar_month_fill1_24px.svg"
+  },
+  {
+    "symbol": "check-circle",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/check_circle/materialsymbolsrounded/check_circle_fill1_24px.svg"
+  },
+  {
+    "symbol": "sliders",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/tune/materialsymbolsrounded/tune_fill1_24px.svg"
+  },
+  {
+    "symbol": "arrow-up",
+    "family": "material",
+    "url": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/arrow_upward/materialsymbolsrounded/arrow_upward_fill1_24px.svg"
+  }
+]

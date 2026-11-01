@@ -1,2 +1,6 @@
 .DS_Store
 *.bak
+.sites-source/
+_site/
+test-results/
+.tastemaker/
