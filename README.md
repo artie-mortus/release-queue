@@ -18,7 +18,7 @@ Open `index.html` directly or serve the directory with:
 python3 -m http.server 8000
 ```
 
-The page saves its state in local storage. Open **Settings** and click **Export queue** to download `release-queue.md`, with the queue order, remaining hours, progress, completed items, and schedule settings. Use **Load file** to restore an exported file. The importer validates the entire file before changing the current queue. Portable backups support files up to 10 MiB; larger exports are refused, and imports use the same limit.
+The page saves its state in local storage. Open **Settings** and click **Export queue** to download `release-queue.md`, with the queue order, remaining hours, progress, completed items, and schedule settings. Use **Load file** to restore an exported Markdown file or a ZIP containing exactly one `.md` or `.markdown` backup, including inside a folder. ZIPs are extracted locally using the bundled MIT-licensed fflate 0.8.3 library; no upload is required. Both the archive and extracted backup must be at most 10 MiB. Archives with multiple Markdown files or invalid backups are rejected before changing the queue. The importer validates the entire file before changing the current queue. Portable backups support files up to 10 MiB; larger exports are refused, and imports use the same limit.
 
 ## Published site
 

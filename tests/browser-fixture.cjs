@@ -9,7 +9,8 @@ const root = path.resolve(__dirname, '..');
 async function runBrowserSuite({contextOptions = {}, network = null, clockDate = '2026-09-22T12:00:00-05:00'}, check){
   const server = http.createServer((req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname;
-    const file = pathname === '/time-bridge-core.js' ? 'time-bridge-core.js'
+    const file = pathname === '/assets/vendor/fflate-0.8.3.js' ? 'assets/vendor/fflate-0.8.3.js'
+      : pathname === '/time-bridge-core.js' ? 'time-bridge-core.js'
       : pathname === '/assets/fonts/InterVariable.woff2' ? 'assets/fonts/InterVariable.woff2' : 'index.html';
     res.setHeader('Content-Type', file.endsWith('.woff2') ? 'font/woff2'
       : file.endsWith('.js') ? 'text/javascript' : 'text/html');

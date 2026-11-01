@@ -1067,9 +1067,10 @@ dialog[open]{animation:dialog-in 160ms var(--ease)}
           <button id="copyPrompt" type="button" title="Copy your queue and missing hours for recommendations">Copy recommendation prompt</button>
           <button id="export" type="button">Export queue</button>
           <button id="importBtn" type="button">Load file</button>
-          <input id="importFile" type="file" accept=".md,.markdown,text/markdown,text/plain" aria-label="Load a saved queue file" hidden>
+          <input id="importFile" type="file" accept=".md,.markdown,.zip,text/markdown,text/plain,application/zip,application/x-zip-compressed" aria-label="Load a saved queue file" hidden>
         </span>
       </div>
+      <p>Load a Markdown backup or a ZIP containing one Markdown backup. Files and extracted backups must each be 10 MiB or smaller.</p>
       <div class="prompt-copy" id="promptCopyFeedback" hidden>
         <p id="promptCopyStatus" role="status" aria-live="polite"></p>
         <div id="promptCopyManual" hidden>
@@ -1188,6 +1189,7 @@ dialog[open]{animation:dialog-in 160ms var(--ease)}
   </script>
 
 <div class="youtube-player-probe" id="youtubePlayerProbe" aria-hidden="true"></div>
+<script src="assets/vendor/fflate-0.8.3.js"></script>
 <script src="time-bridge-core.js"></script>
 <script>
 /* Pure calculation stays separate from DOM rendering. */
@@ -2703,15 +2705,36 @@ $('export').onclick = () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 $('importBtn').onclick = () => $('importFile').click();
+async function readQueueBackup(file){
+  const limit = TimeBridgeCore.MAX_PORTABLE_SAVE_BYTES;
+  if(file.size > limit) throw new Error('The selected file exceeds the supported 10 MiB limit.');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const isZip = /\.zip$/i.test(file.name) || (bytes[0] === 0x50 && bytes[1] === 0x4b);
+  if(!isZip) return new TextDecoder().decode(bytes);
+  if(typeof fflate === 'undefined') throw new Error('ZIP support could not load. Extract the Markdown backup and load it directly.');
+  const candidates = [];
+  try{
+    // Inspect the directory first, without decompressing any entry.
+    fflate.unzipSync(bytes, {filter(entry){
+      if(!entry.name.startsWith('__MACOSX/') && /\.(md|markdown)$/i.test(entry.name)) candidates.push(entry);
+      return false;
+    }});
+  }catch(error){ throw new Error('This ZIP could not be read. Use an unencrypted ZIP or load the Markdown backup directly.'); }
+  if(candidates.length !== 1) throw new Error('Choose a ZIP containing exactly one Markdown backup.');
+  const entry = candidates[0];
+  if(entry.originalSize > limit) throw new Error('The extracted backup exceeds the supported 10 MiB limit.');
+  let extracted;
+  try{
+    extracted = fflate.unzipSync(bytes, {filter:item => item.name === entry.name})[entry.name];
+    if(!extracted || extracted.length !== entry.originalSize) throw new Error('Invalid ZIP entry.');
+  }catch(error){ throw new Error('The backup could not be extracted. Use an unencrypted ZIP or load the Markdown backup directly.'); }
+  return new TextDecoder().decode(extracted);
+}
 $('importFile').onchange = async () => {
   const file = $('importFile').files[0];
   if(!file) return;
   try{
-    if(file.size > TimeBridgeCore.MAX_PORTABLE_SAVE_BYTES){
-      const limit = TimeBridgeCore.MAX_PORTABLE_SAVE_BYTES / (1024 * 1024);
-      throw new Error(`The selected file exceeds the supported ${limit} MiB limit.`);
-    }
-    const parsed = parseStateText(await file.text());
+    const parsed = parseStateText(await readQueueBackup(file));
     if(!parsed.ok) throw new Error(parsed.error);
     checkpoint(`Loaded ${file.name}`);
     const n = applyState(parsed);
