@@ -3360,24 +3360,38 @@ async function gameMainStoryProfile(pick){
   let qid = pick.qid;
   const names = [pick.name,...(pick.aliases || [])];
   if(!id){
-    if(!qid){
-      const matches = (await findWikidata(pick.name)).filter(hit => hit.kind === 'Game'
-        && names.some(name => loose(hit.name) === loose(name)));
-      if(matches.length !== 1) throw new Error('Could not identify an exact game match.');
-      qid = matches[0].qid;
+    // Wikidata does not list every game or every completion-time source.
+    // Missing metadata must not prevent a title lookup at the source itself.
+    try{
+      if(!qid){
+        const matches = (await findWikidata(pick.name)).filter(hit => hit.kind === 'Game'
+          && names.some(name => loose(hit.name) === loose(name)));
+        if(matches.length === 1) qid = matches[0].qid;
+      }
+      if(qid){
+        const data = await jget(WD + 'action=wbgetentities&props=claims&ids=' + encodeURIComponent(qid));
+        const claims = (data.entities?.[qid]?.claims?.P2816 || []).filter(claim => claim.rank !== 'deprecated');
+        const preferred = claims.filter(claim => claim.rank === 'preferred');
+        const ids = [...new Set((preferred.length ? preferred : claims).map(claim => claim.mainsnak?.datavalue?.value)
+          .filter(value => typeof value === 'string' && /^[1-9]\d{0,8}$/.test(value)))];
+        if(ids.length === 1) id = ids[0];
+      }
+    }catch(error){ /* The public source search below can still resolve this game. */ }
+    if(!id){
+      const searchUrl = `https://howlongtobeat.com/?q=${encodeURIComponent(pick.name)}`;
+      const text = await fetchStoryText(`https://r.jina.ai/${searchUrl}`, {}, null, 20000);
+      const matches = [...text.matchAll(/^#{1,6}\s+\[([^\]\r\n]+)\]\(https:\/\/howlongtobeat\.com\/game\/([1-9]\d{0,8})(?: "[^"\r\n]*")?\)/gm)]
+        .filter(match => names.some(name => loose(name) === loose(match[1])));
+      const ids = [...new Set(matches.map(match => match[2]))];
+      if(ids.length !== 1) throw new Error('Could not identify an exact game match at the completion-time source.');
+      id = ids[0];
     }
-    const data = await jget(WD + 'action=wbgetentities&props=claims&ids=' + encodeURIComponent(qid));
-    const claims = (data.entities?.[qid]?.claims?.P2816 || []).filter(claim => claim.rank !== 'deprecated');
-    const preferred = claims.filter(claim => claim.rank === 'preferred');
-    const ids = [...new Set((preferred.length ? preferred : claims).map(claim => claim.mainsnak?.datavalue?.value)
-      .filter(value => typeof value === 'string' && /^[1-9]\d{0,8}$/.test(value)))];
-    if(ids.length !== 1) throw new Error('No unambiguous main-story source is listed for this game.');
-    id = ids[0];
   }
   const sourceUrl = `https://howlongtobeat.com/game/${id}`;
   // Public completion data, read through the same browser-compatible reader
   // as story and playlist lookups. No private credential or backend is used.
-  const text = await fetchStoryText(`https://r.jina.ai/${sourceUrl}`, {'X-No-Cache':'true','X-Engine':'direct'}, null, 20000);
+  // Let the reader render the category headings; its direct engine can omit them.
+  const text = await fetchStoryText(`https://r.jina.ai/${sourceUrl}`, {}, null, 20000);
   const hours = parseGameMainStory(text, id, names);
   if(hours === null) throw new Error('The source did not provide a matching main-story time.');
   const checkedOn = toDateValue(new Date());
