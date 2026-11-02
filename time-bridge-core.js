@@ -325,17 +325,19 @@
       .slice(0, Math.max(1, Math.floor(finiteNumber(limit, 5))));
   }
 
-  function calculateSchedule({fullPace, ceiling, ytPerWeek = 0, startOff = 0, jobHours = 0, jobOff = Infinity}){
+  function calculateSchedule({fullPace, ceiling, ytPerWeek = 0, grassHours = 0, startOff = 0, jobHours = 0, jobOff = Infinity}){
     const safeCeiling = Math.max(0, finiteNumber(ceiling));
     const safeFullPace = clampNumber(fullPace, 0, safeCeiling, 0);
     const safeYouTube = Math.max(0, finiteNumber(ytPerWeek));
+    const safeGrass = Math.max(0, finiteNumber(grassHours));
+    const recurringHours = safeYouTube + safeGrass;
     const safeJobHours = Math.max(0, finiteNumber(jobHours));
     const safeStart = Math.max(0, finiteNumber(startOff));
     const safeJobOff = Number.isFinite(jobOff) ? Math.max(safeStart, jobOff) : Infinity;
     const freeAfter = Math.max(0, safeCeiling - safeJobHours);
     const jobPace = safeCeiling > 0 ? safeFullPace * (freeAfter / safeCeiling) : 0;
-    const pace = Math.max(0, safeFullPace - safeYouTube);
-    const paceAfter = Math.max(0, jobPace - safeYouTube);
+    const pace = Math.max(0, safeFullPace - recurringHours);
+    const paceAfter = Math.max(0, jobPace - recurringHours);
     const perDayBefore = pace / 7, perDayAfter = paceAfter / 7;
     const capBefore = safeJobOff === Infinity ? Infinity : (safeJobOff - safeStart) * perDayBefore;
 
@@ -357,7 +359,8 @@
       startOff:safeStart, jobOff:safeJobOff, dayForHour, hoursByDay,
       slows:safeJobHours > 0 && paceAfter < pace,
       stalls:safeJobHours > 0 && paceAfter <= 0 && pace > 0,
-      ytStalls:safeYouTube > 0 && pace <= 0
+      ytStalls:safeYouTube > 0 && safeYouTube >= safeFullPace,
+      recurringStalls:recurringHours > 0 && pace <= 0
     };
   }
 
@@ -779,6 +782,7 @@ Target: ${target.gameName}, ${target.releaseDate}. Loading this file restores th
 - Job starts: ${schedule.jobDate}
 - YouTube per: ${schedule.ytUnit}
 - YouTube amount: ${schedule.ytAmount}
+- Touch grass hours: ${schedule.grassHours ?? 0}
 - Book pages per hour: ${schedule.bookPagesPerHour}
 
 ## Queue
@@ -893,6 +897,11 @@ ${stateRows(completed) || '| (empty) | | | | |'}
     const scheduleMode = pick(/-\s*Schedule mode:\s*(\w+)/i) || 'advanced';
     if(!['simple', 'advanced'].includes(scheduleMode)) return {ok:false, error:'Invalid schedule mode.'};
     const bookPagesPerHour = pick(/-\s*Book pages per hour:\s*([\d.]+)/i);
+    const grassValue = pick(/^-\s*Touch grass hours:[^\S\r\n]*([^\r\n]*)$/im);
+    const grassHours = grassValue === null ? 0 : Number(grassValue);
+    if(grassValue !== null && (!grassValue.trim() || !Number.isFinite(grassHours) || grassHours < 0 || grassHours > 168)){
+      return {ok:false, error:'Invalid Touch grass hours in saved schedule.'};
+    }
     const required = Object.values(schedule);
     if(required.some(value => value === null) || !/^\|\s*Item\s*\|\s*Kind\s*\|\s*Hours\s*\|/im.test(text)){
       return {ok:false, error:'The queue save is incomplete.'};
@@ -924,7 +933,7 @@ ${stateRows(completed) || '| (empty) | | | | |'}
       catch(error){ /* Reject malformed targets before applying any imported state. */ }
       if(!target) return {ok:false, error:'Invalid game or release date in this save.'};
     }
-    return {ok:true, schedule:{...schedule, bookPagesPerHour, scheduleMode}, queue, completed, ...(target ? {target} : {})};
+    return {ok:true, schedule:{...schedule, bookPagesPerHour, scheduleMode, grassHours}, queue, completed, ...(target ? {target} : {})};
   }
 
   function webStoryPlatform(sourceUrl){

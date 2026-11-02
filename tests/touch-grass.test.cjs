@@ -1,0 +1,54 @@
+const {runBrowserSuite,goToView}=require('./browser-fixture.cjs');
+const assert=require('node:assert/strict');
+
+runBrowserSuite({contextOptions:{viewport:{width:1440,height:1000},reducedMotion:'reduce'}},async({url,page})=>{
+  await page.goto(url);
+  await page.evaluate(()=>addToQueue({name:'A long game',kind:'Game',hours:42}));
+  await goToView(page,'plan');
+  assert.equal(await page.locator('#budgetSettings #grassSettings').isVisible(),true);
+  assert.equal(await page.evaluate(()=>$('jobSettings').nextElementSibling.id),'grassSettings');
+  await page.locator('#grassHours').fill('7');
+  assert.equal(await page.locator('#grassOut').textContent(),'7 h/wk');
+  assert.equal(await page.locator('#overviewPace').textContent(),'14 h');
+  assert.equal(await page.evaluate(()=>currentForecast().finishDay),21);
+  assert.equal(await page.locator('#forecastList li time').getAttribute('datetime'),'2026-10-13');
+  await page.locator('#ytAmount').fill('1');
+  assert.equal(await page.locator('#overviewPace').textContent(),'7 h');
+  assert.equal(await page.evaluate(()=>currentForecast().finishDay),42);
+  await page.locator('#scheduleMode').selectOption('advanced');
+  assert.equal(await page.locator('#grassSettings').isVisible(),true);
+  assert.equal(await page.evaluate(()=>buildSchedule().pace),7);
+  await page.locator('#jobHours').fill('38');
+  assert.ok(await page.evaluate(()=>buildSchedule().paceAfter<buildSchedule().pace));
+  await page.locator('#scheduleMode').selectOption('simple');
+  assert.equal(await page.evaluate(()=>buildSchedule().paceAfter),7);
+  await page.evaluate(()=>flushSave());
+  await page.reload();
+  assert.equal(await page.locator('#grassHours').inputValue(),'7');
+  assert.equal(await page.evaluate(()=>parseStateText(serializeState()).schedule.grassHours),7);
+  const saved=await page.evaluate(()=>serializeState());
+  await page.locator('#grassHours').fill('21');
+  assert.equal(await page.evaluate(()=>currentForecast().finishDay),Infinity);
+  assert.match(await page.locator('#grassNote').textContent(),/no time for the queue/);
+  assert.match(await page.locator('#bridgeNote').textContent(),/whole pace/);
+  const legacy=saved.replace(/- Touch grass hours:.*\n/,'');
+  await page.locator('#importFile').setInputFiles({name:'legacy.md',mimeType:'text/markdown',buffer:Buffer.from(legacy)});
+  await page.waitForFunction(()=>$('grassHours').value==='0');
+  await page.locator('#undo').click();
+  assert.equal(await page.locator('#grassHours').inputValue(),'21','Undo import restores the setting');
+  await page.locator('#importFile').setInputFiles({name:'queue.md',mimeType:'text/markdown',buffer:Buffer.from(saved)});
+  await page.waitForFunction(()=>$('grassHours').value==='7');
+  for(const width of [320,390,768,1440]){
+    await page.setViewportSize({width,height:900});
+    await page.locator('#grassHours').scrollIntoViewIfNeeded();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`overflow at ${width}`);
+    const input=await page.locator('#grassHours').boundingBox();
+    assert.ok(input.x>=0 && input.x+input.width<=width,`Touch grass input fits at ${width}`);
+  }
+  await page.locator('#grassHours').fill('999');
+  assert.equal(await page.locator('#grassHours').inputValue(),'168');
+  await page.locator('#grassHours').fill('');
+  await page.locator('#grassHours').press('Tab');
+  assert.equal(await page.locator('#grassHours').inputValue(),'0');
+  console.log('PASS Touch grass',url.startsWith('file:')?'direct file':'static HTTP');
+}).catch(error=>{console.error(error);process.exitCode=1;});

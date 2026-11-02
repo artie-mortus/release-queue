@@ -23,6 +23,39 @@ ${rows}
 ${completed}`;
 const metadataCell = value => encodeURIComponent(JSON.stringify(value));
 
+test('Touch grass deducts weekly time before and after a future job begins', () => {
+  const plan = core.calculateSchedule({fullPace:28, ceiling:112, ytPerWeek:3.5,
+    grassHours:3.5, startOff:2, jobHours:56, jobOff:9});
+  assert.equal(plan.pace,21);
+  assert.equal(plan.paceAfter,7);
+  assert.equal(plan.hoursByDay(9),21);
+  assert.equal(plan.dayForHour(28),16);
+  const stopped = core.calculateSchedule({fullPace:7, ceiling:112, grassHours:7});
+  assert.equal(stopped.dayForHour(1),Infinity);
+  assert.equal(stopped.hoursByDay(30),0);
+  assert.equal(stopped.recurringStalls,true);
+  const laterStop = core.calculateSchedule({fullPace:28, ceiling:112,
+    grassHours:14, jobHours:56, jobOff:7});
+  assert.equal(laterStop.dayForHour(14),7);
+  assert.equal(laterStop.dayForHour(15),Infinity);
+});
+
+test('Touch grass saves round-trip and older saves default to zero', () => {
+  const legacy = portableSave('| Movie | Movie | 2 | | |');
+  assert.equal(core.parseStateText(legacy).schedule.grassHours,0);
+  const saved = legacy.replace('- YouTube amount: 0','- YouTube amount: 0\n- Touch grass hours: 3.5');
+  const parsed = core.parseStateText(saved);
+  assert.equal(parsed.ok,true);
+  assert.equal(parsed.schedule.grassHours,3.5);
+  const encoded = core.serializeState({appName:'Release Queue',
+    target:{gameName:'Example',gameShortName:'Example',releaseDate:'2026-11-19',dateLabel:'Planning date'},
+    savedAt:new Date(),schedule:parsed.schedule,queue:parsed.queue,completed:[]});
+  assert.equal(core.parseStateText(encoded).schedule.grassHours,3.5);
+  for(const invalid of ['-1','169','Infinity','nope','']){
+    assert.equal(core.parseStateText(saved.replace('Touch grass hours: 3.5',`Touch grass hours: ${invalid}`)).ok,false);
+  }
+});
+
 test('shared dates preserve calendar validation, local midnight, and target year bounds', () => {
   for(const value of ['2026-02-30','2026-13-01','2026-00-01','2026-01-00','0099-01-01','bad']){
     assert.equal(core.parseDateValue(value),null);

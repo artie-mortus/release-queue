@@ -1019,6 +1019,18 @@ dialog[open]{animation:dialog-in 160ms var(--ease)}
         </div>
         <p class="note" id="jobNote">No job on the books. Full pace the whole way.</p>
       </div>
+
+      <div class="job" id="grassSettings">
+        <div class="job-top">
+          <span class="pace-label">Touch grass</span>
+          <output id="grassOut" for="grassHours">none</output>
+        </div>
+        <div class="field">
+          <label for="grassHours">Hours a week in the outside world</label>
+          <input id="grassHours" type="number" min="0" max="168" step="0.5" value="0" inputmode="decimal" aria-describedby="grassNote">
+        </div>
+        <p class="note" id="grassNote">Outside has great graphics. Reserve a few hours away from the queue.</p>
+      </div>
       </div>
       </details>
 </div></div><section class="forecast-list-panel"><h2>One thing at a time</h2><p class="section-caption">Projected finishes, in playback order.</p><ol id="forecastList" class="forecast-list"></ol></section></section>
@@ -1327,19 +1339,21 @@ function setYtUnit(unit, {convert = false, renderNow = true} = {}){
   if(renderNow) render();
 }
 
+function readGrassHours(){ return clampNumber($('grassHours').value, 0, 168, 0); }
+
 function readComputationInputs(now = new Date()){
   const today = midnight(now), schedule = readSchedule(), startValue = $('startDate').value;
   return {now, today, schedule, startValue, start:startDate(today, startValue),
-    job:readJob(today, schedule.mode), yt:readYouTube(), bookPace:readBookPace()};
+    job:readJob(today, schedule.mode), yt:readYouTube(), grassHours:readGrassHours(), bookPace:readBookPace()};
 }
 function buildSchedule(paceOverride = null, inputs = readComputationInputs()){
   const {pace, ceiling} = inputs.schedule;
   const fullPace = paceOverride === null ? pace : clampNumber(paceOverride, 1, ceiling, pace);
-  const {yt, job, now, start} = inputs;
+  const {yt, job, grassHours, now, start} = inputs;
   const startOff = Math.max(0, dayNumber(start) - dayNumber(now));
   // A job dated before the queue starts simply applies from the queue's own start.
   const jobOff = job.hours > 0 ? Math.max(startOff, job.startOff) : Infinity;
-  const model = calculateSchedule({fullPace, ceiling, ytPerWeek:yt.perWeek,
+  const model = calculateSchedule({fullPace, ceiling, ytPerWeek:yt.perWeek, grassHours,
     startOff, jobHours:job.hours, jobOff});
   // YouTube's hours are an output: its daily rate across the span actually spent
   // working the queue.
@@ -1347,7 +1361,7 @@ function buildSchedule(paceOverride = null, inputs = readComputationInputs()){
     const end = model.dayForHour(h);
     return isFinite(end) ? yt.perDay * Math.max(0, end - startOff) : Infinity;
   };
-  return {...model, job, yt, ytHoursFor};
+  return {...model, job, yt, grassHours, ytHoursFor};
 }
 
 // Contexts live only for one render or result paint. Async responses and later
@@ -1448,13 +1462,13 @@ function renderBridge(context){
     ? 'Playback stays in queue order and waits for known episode airdates. Hatched gaps are waiting time; move available items earlier to fill them. Older episodes without dates are treated as available.'
     : !queue.length
     ? 'Add something and it lands here, measured against the time you actually have.'
-    : plan.ytStalls
-      ? `${num1(plan.yt.perWeek)} h/wk of YouTube takes your whole pace, so the queue never moves.`
+    : plan.recurringStalls
+      ? `Your recurring time commitments take your whole pace, so the queue never moves.`
     : isFinite(ytHours) && ytHours > 0
       ? `Recurring YouTube takes ${num1(plan.yt.perWeek)} h/wk from your budget. Each item already stretches to its actual projected finish at the remaining pace.`
     : plan.stalls
-      ? plan.yt.perWeek
-        ? `The job and YouTube leave none of your committed pace for the queue from ${fmtDate(plan.job.date)}, so it stops there.`
+      ? (plan.yt.perWeek || plan.grassHours)
+        ? `The job and recurring commitments leave none of your committed pace for the queue from ${fmtDate(plan.job.date)}, so it stops there.`
         : `The job takes the whole budget from ${fmtDate(plan.job.date)}, so the queue stops there.`
     : plan.slows && isFinite(plan.jobOff)
       ? `Segments widen after ${fmtDate(plan.job.date)} — same hours, fewer per week once the job starts.`
@@ -1573,7 +1587,7 @@ function computationSignature(context){
   const {now, startValue, bookPace, plan, schedule} = context;
   return `${schedule.pace}::${schedule.sleepStart}-${schedule.sleepEnd}::${startValue}`
     + `::${plan.job.hoursValue}-${plan.job.dateValue}::${plan.yt.unit}-${plan.yt.value}`
-    + `::book-${bookPace}::${schedule.mode}::${stateRevision}`
+    + `::grass-${plan.grassHours}::book-${bookPace}::${schedule.mode}::${stateRevision}`
     + `::${SITE_CONFIG.gameName}-${SITE_CONFIG.releaseDate}::${dayNumber(now)}`;
 }
 function syncQueueItems({now, bookPace}){
@@ -1628,8 +1642,8 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
   const simple = inputs.schedule.mode === 'simple';
   $('sleepSettings').hidden = $('jobSettings').hidden = $('awakeNote').hidden = simple;
   $('scheduleExplanation').textContent = simple
-    ? 'Enter time available after work, sleep, and other commitments. Recurring YouTube below is deducted from this budget.'
-    : 'The job reduces your chosen pace in proportion to waking hours. Use this only if your pace does not already account for work. YouTube is deducted afterward.';
+    ? 'Enter time available after work, sleep, and other commitments. YouTube and Touch grass hours below are deducted from this budget.'
+    : 'The job reduces your chosen pace in proportion to waking hours. Use this only if your pace does not already account for work. YouTube and Touch grass hours are deducted afterward.';
   renderBookPaceHint(inputs.bookPace);
   const context = computationContext({inputs});
   const {now, start, plan, forecast, totalQueued, schedule:{sleep, ceiling, pace}} = context;
@@ -1677,11 +1691,18 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
   $('ytNote').innerHTML = '<svg class="icon note-icon" aria-hidden="true">'
     + '<use href="#i-youtube-logo"/></svg> ' + (!yt.perWeek
     ? 'Nothing set. YouTube is taking no cut of your pace.'
-    : plan.ytStalls
-      ? `<b>${num1(yt.perWeek)}</b> h/wk swallows your whole <b>${pace}</b> h/wk. Nothing is left for the queue.`
+    : plan.recurringStalls
+      ? `YouTube${plan.grassHours ? ' and Touch grass' : ''} uses your whole <b>${pace}</b> h/wk budget. Nothing is left for the queue.`
       : `<b>${num1(yt.perDay)}</b> h/day is <b>${num1(yt.perWeek)}</b> h/wk off the top, so the queue runs at `
         + `<b>${num1(plan.pace)}</b> h/wk. That is <b>${Math.round(yt.perDay * daysToLaunch)}</b> fewer queue `
         + `hours needed to reach launch day.`);
+
+  $('grassOut').textContent = plan.grassHours ? `${num1(plan.grassHours)} h/wk` : 'none';
+  $('grassNote').textContent = !plan.grassHours
+    ? 'Outside has great graphics. Reserve a few hours away from the queue.'
+    : plan.recurringStalls
+      ? 'Grass successfully touched. Your recurring commitments use the whole time budget, leaving no time for the queue.'
+      : `${num1(plan.grassHours)} h/wk reserved for the outside world. The queue gets ${num1(plan.pace)} h/wk${plan.job.hours ? ' before the day job adjustment' : ''}. The grass thanks you.`;
 
   const jobPace = plan.paceAfter;
   const cut = Math.max(0, plan.pace - jobPace);
@@ -1690,8 +1711,8 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
   $('jobNote').textContent = !plan.job.hours
     ? 'No job on the books. Full pace the whole way.'
     : plan.stalls
-      ? plan.yt.perWeek
-        ? `From ${fmtDate(plan.job.date)}, the job and YouTube leave none of your committed pace for the queue. It stops there.`
+      ? (plan.yt.perWeek || plan.grassHours)
+        ? `From ${fmtDate(plan.job.date)}, the job and recurring commitments leave none of your committed pace for the queue. It stops there.`
         : `${plan.job.hours} h/wk leaves no waking time from ${fmtDate(plan.job.date)}. The queue stops there.`
     : cut < 0.05
       ? `${plan.job.hours} h/wk barely dents ${num1(plan.pace)} h/wk, so the pace holds.`
@@ -2545,7 +2566,7 @@ function serializeState(){
     queue, completed, schedule:{scheduleMode:$('scheduleMode').value,
       sleepStart:$('sleepStart').value, sleepEnd:$('sleepEnd').value, pace:$('paceInput').value,
       startDate:$('startDate').value, jobHours:$('jobHours').value, jobDate:$('jobStart').value,
-      ytUnit, ytAmount:$('ytAmount').value, bookPagesPerHour:readBookPace()}});
+      ytUnit, ytAmount:$('ytAmount').value, grassHours:readGrassHours(), bookPagesPerHour:readBookPace()}});
 }
 
 function applyState(parsed){
@@ -2564,6 +2585,7 @@ function applyState(parsed){
   $('startDate').value = toDateValue(fromDateValue(state.startDate) || new Date());
   $('startDate').value = toDateValue(startDate());
   if(state.jobHours !== null) $('jobHours').value = clampNumber(state.jobHours, 0, 90, 0);
+  $('grassHours').value = clampNumber(state.grassHours, 0, 168, 0);
   $('bookPace').value = clampNumber(state.bookPagesPerHour, 20, 1000, DEFAULT_BOOK_PAGES_PER_HOUR);
   $('jobStart').value = toDateValue(fromDateValue(state.jobDate) || new Date());
   $('jobStart').value = toDateValue(readJob().date);
@@ -2661,8 +2683,9 @@ ${rows.join('\n') || '(The queue is empty.)'}
 
 ${timing}
 Current queue total: ${fmtHours(num1(forecast.totalHours))}.
-Available queue time before release: ${fmtHours(num1(forecast.capacity))}, after recurring YouTube time is deducted.
+Available queue time before release: ${fmtHours(num1(forecast.capacity))}, after recurring YouTube${plan.grassHours ? ' and Touch grass' : ''} time is deducted.
 ${plan.yt.perDay > 0 ? `Recurring YouTube: ${fmtHours(num1(plan.yt.perDay))} per day, alongside the queue.\n` : ''}
+${plan.grassHours > 0 ? `Touch grass: ${fmtHours(num1(plan.grassHours))} per week away from the queue.\n` : ''}
 Suggest what to play, watch or read next based on this queue. Put your recommendations first, avoid titles already listed, and include estimated runtimes and a brief reason for each. Aim to cover the missing time when there is a gap.`;
 }
 function copyPromptFallback(text){
@@ -3709,6 +3732,11 @@ $('ytPerWeek').onclick = () => setYtUnit('week', {convert:true});
   setYtUnit(keyUnit, {convert:true});
   $(keyUnit === 'day' ? 'ytPerDay' : 'ytPerWeek').focus();
 });
+$('grassHours').oninput = () => {
+  if($('grassHours').value !== '') $('grassHours').value = readGrassHours();
+  render();
+};
+$('grassHours').onblur = () => { $('grassHours').value = readGrassHours(); };
 $('jobHours').oninput = () => {
   if($('jobHours').value !== '') $('jobHours').value = clampNumber($('jobHours').value, 0, 90, 0);
   render();
