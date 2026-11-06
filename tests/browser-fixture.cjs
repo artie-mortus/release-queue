@@ -14,9 +14,12 @@ async function runBrowserSuite({contextOptions = {}, network = null, clockDate =
     const pathname = new URL(req.url, 'http://localhost').pathname;
     const file = pathname === '/assets/vendor/fflate-0.8.3.js' ? 'assets/vendor/fflate-0.8.3.js'
       : pathname === '/time-bridge-core.js' ? 'time-bridge-core.js'
+      : pathname === '/lookups.js' ? 'lookups.js'
+      : pathname === '/styles.css' ? 'styles.css'
       : pathname === '/app.js' ? 'app.js'
       : pathname === '/assets/fonts/InterVariable.woff2' ? 'assets/fonts/InterVariable.woff2' : 'index.html';
     res.setHeader('Content-Type', file.endsWith('.woff2') ? 'font/woff2'
+      : file.endsWith('.css') ? 'text/css'
       : file.endsWith('.js') ? 'text/javascript' : 'text/html');
     res.end(fs.readFileSync(path.join(root, file)));
   });

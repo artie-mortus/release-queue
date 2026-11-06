@@ -5,7 +5,7 @@ runBrowserSuite({contextOptions:{viewport:{width:390,height:844},reducedMotion:'
   await page.goto(url);
   await page.evaluate(()=>{
     const empty=async()=>[];
-    findShows=findPodcasts=findLightNovels=findWebFiction=findWikidata=findBooks=findRawgGames=empty;
+    findShows=findPodcasts=findLightNovels=findWebFiction=findWikidata=findBooks=empty;
     jget=async()=>({averageRuntime:60,_embedded:{episodes:[
       {season:1,number:1,runtime:60,airdate:'2026-09-20'},
       {season:1,number:2,runtime:60,airdate:'2026-10-02'},

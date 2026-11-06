@@ -6,7 +6,7 @@ runBrowserSuite({contextOptions:{reducedMotion:'reduce', viewport:{width:390,hei
   await page.evaluate(() => {
     window.catalogCalls = 0;
     const empty = async () => { catalogCalls++; return []; };
-    findShows = findPodcasts = findLightNovels = findWebFiction = findWikidata = findBooks = findRawgGames = empty;
+    findShows = findPodcasts = findLightNovels = findWebFiction = findWikidata = findBooks = empty;
   });
   await openAddDialog(page);
   await page.locator('#name').fill('Unlisted personal title');

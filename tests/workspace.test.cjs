@@ -17,7 +17,7 @@ runBrowserSuite({contextOptions:{viewport:{width:1440,height:1000},reducedMotion
   // Fixtures keep lookup availability separate from static app behavior.
   await page.evaluate(()=>{
     const empty=async()=>[];
-    findShows=findPodcasts=findLightNovels=findWebFiction=findWikidata=findBooks=findRawgGames=empty;
+    findShows=findPodcasts=findLightNovels=findWebFiction=findWikidata=findBooks=empty;
   });
   await openAddDialog(page);
   await page.locator('#name').fill('A personal game');

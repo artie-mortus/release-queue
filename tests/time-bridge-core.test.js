@@ -118,6 +118,19 @@ test('portable serializer uses an explicit snapshot and round-trips every media 
   }
 });
 
+test('saves that differ only by save time hold the same content', () => {
+  const target={gameName:'Example game',gameShortName:'Example',releaseDate:'2026-11-19',dateLabel:'Planning date',sourceUrl:''};
+  const schedule={scheduleMode:'simple',sleepStart:'2',sleepEnd:'7',pace:'21',startDate:'2026-09-22',
+    jobHours:'0',jobDate:'2026-09-22',ytUnit:'day',ytAmount:'0',bookPagesPerHour:190};
+  const save=(savedAt,queue)=>core.serializeState({appName:'Release Queue',target,savedAt,schedule,queue,completed:[]});
+  const queue=[{name:'Movie',kind:'Movie',hours:2}];
+  const morning=save(new Date(2026,8,22,9),queue);
+  assert.notEqual(morning,save(new Date(2026,8,23,0),queue));
+  assert.equal(core.sameSavedContent(morning,save(new Date(2026,8,23,0),queue)),true);
+  assert.equal(core.sameSavedContent(morning,save(new Date(2026,8,22,9),[...queue,{name:'Game',kind:'Game',hours:5}])),false);
+  assert.equal(core.sameSavedContent(morning,null),false);
+});
+
 test('portable saves larger than the former import cap round-trip below the supported maximum', () => {
   const target={gameName:'Example game',gameShortName:'Example',releaseDate:'2026-11-19',dateLabel:'Planning date',sourceUrl:''};
   const schedule={scheduleMode:'simple',sleepStart:'2',sleepEnd:'7',pace:'21',startDate:'2026-09-22',

@@ -787,6 +787,10 @@
     estimateNeeded:item.estimateNeeded, completedAt:item.completedAt, runtimeSource:item.runtimeSource, runtimeBasis:item.runtimeBasis,catalogId:item.catalogId}));
   const stateRows = items => items.map(x =>
     `| ${escCell(x.name)} | ${x.kind} | ${x.hours} | ${detailCell(x)} | ${extraCell(x)} |`).join('\n');
+  // Two saves hold the same queue and settings when only their save time differs.
+  const SAVED_AT_LINE = /^Saved .*\. Use Load file in .* to restore this queue and its settings\.$/m;
+  const sameSavedContent = (a, b) => typeof a === 'string' && typeof b === 'string'
+    && a.replace(SAVED_AT_LINE, '') === b.replace(SAVED_AT_LINE, '');
   function serializeState({appName, target, savedAt, schedule, queue, completed}){
     const rows = stateRows(queue);
     return `# ${appName}
@@ -1063,6 +1067,6 @@ ${stateRows(completed) || '| (empty) | | | | |'}
     playlistHours, remainingPlaylistHours, nextPlaylistIndex, refreshedPlaylist, parsePlaylistReader,
     estimateLightNovelPages, bookPageCount, prepareBookSuggestions, prepareLightNovelSuggestions,
     calculateSchedule, queuePositionAtHours, forecastTotals, forecastQueue, previewAppend, adjustPodcastCatalogCount, parsePodCell, parseBookCell, parsePlaylistUrl, parseYouTubeCell,
-    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, normalizeShowEpisodes, parseShowCell, serializeState, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, validateReleaseTarget,queueItemsMatch
+    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, normalizeShowEpisodes, parseShowCell, serializeState, sameSavedContent, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, validateReleaseTarget,queueItemsMatch
   };
 });

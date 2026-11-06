@@ -77,7 +77,7 @@ runBrowserSuite({network:async({context})=>{
   assert.match(game.runtimeSource,/Unverified local/);
   await page.evaluate(async()=>{
     queue=[];completed=[];
-    await choosePick({kind:'Game',name:'Unlisted game',hours:100,note:'RAWG · 100h average playtime'});
+    await choosePick({kind:'Game',name:'Unlisted game',hours:100,note:'Search result · 100h average playtime'});
   });
   game=await page.evaluate(()=>queue[0]);
   assert.equal(game.estimateNeeded,true,'Playtime is not completion time');

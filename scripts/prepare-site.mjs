@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const dist = path.join(root, '_site');
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist);
-for (const name of ['index.html', 'time-bridge-core.js', 'app.js', 'assets']) {
+for (const name of ['index.html', 'styles.css', 'time-bridge-core.js', 'lookups.js', 'app.js', 'assets']) {
   cpSync(path.join(root, name), path.join(dist, name), { recursive: true });
 }
 console.log(dist);

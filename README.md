@@ -32,7 +32,7 @@ Browser storage is separate for each URL. Export and import your queue when movi
 
 ## Development
 
-`index.html` has the markup and styles. `app.js` has the interface code, and `time-bridge-core.js` has the calculations and save format. All three load as plain classic scripts, so the page still opens straight from disk.
+`index.html` has the markup and `styles.css` the styles. `time-bridge-core.js` has the calculations and save format, `lookups.js` the public catalogs and lookup services, and `app.js` the interface code. The scripts load as plain classic scripts in that order, so the page still opens straight from disk.
 
 The tests need Node 22 or later and Playwright. The site itself still needs neither.
 
@@ -41,6 +41,6 @@ npm ci
 npm test
 ```
 
-`npm test` runs the calculation tests and every browser suite in `tests/`. Browser suites use `CHROMIUM_PATH` if set, then `/usr/bin/chromium`, then Playwright's own Chromium (`npx playwright install chromium`). Failure screenshots land in `test-results/gui/`. Development notes are in `docs/`.
+`npm test` runs the calculation tests and every browser suite in `tests/`. Browser suites use `CHROMIUM_PATH` if set, then `/usr/bin/chromium`, then Playwright's own Chromium (`npx playwright install chromium`). Failure screenshots land in `test-results/gui/`. Open ideas are in [docs/backlog.md](docs/backlog.md).
 
 Pushes to `main` run every test and deploy to GitHub Pages through [deploy.yml](.github/workflows/deploy.yml). `node scripts/prepare-site.mjs` packages the static files for publishing.
