@@ -22,10 +22,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check calculations and playlist parsing
+          cache: npm
+      - name: Install test tooling
         run: |
-          node tests/time-bridge-core.test.js
-          node tests/playlist-reader.test.cjs
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run calculation and browser tests
+        run: npm test
+      - name: Keep browser failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-failures
+          path: test-results/gui/
+          if-no-files-found: ignore
       - name: Prepare static files
         run: node scripts/prepare-site.mjs
       - name: Configure GitHub Pages

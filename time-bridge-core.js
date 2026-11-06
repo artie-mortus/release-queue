@@ -674,6 +674,29 @@
     }catch(error){ return null; }
   }
 
+  // Episode lists come from a public catalog. Keep only what parseShowCell
+  // accepts on reload: numbered episodes in strictly increasing order, each
+  // with a positive runtime of at most a day. The first listing of a repeated
+  // season and number wins.
+  function normalizeShowEpisodes(episodes){
+    const seen = new Set();
+    return (Array.isArray(episodes) ? episodes : [])
+      .filter(e => Number.isInteger(e?.season) && e.season >= 0 && Number.isInteger(e.number) && e.number >= 1
+        && Number.isInteger(e.seconds) && e.seconds > 0)
+      .map(e => {
+        const episode = {...e, seconds:Math.min(86400, e.seconds)};
+        if(episode.availableOn !== undefined && !validDateValue(episode.availableOn)) delete episode.availableOn;
+        return episode;
+      })
+      .sort((a, b) => a.season - b.season || a.number - b.number)
+      .filter(e => {
+        const key = `${e.season}:${e.number}`;
+        if(seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
   function parseShowCell(detail){
     try{
       if(!detail.startsWith('show=')) return null;
@@ -731,7 +754,8 @@
     return !!loose(a.name) && loose(a.name) === loose(b.name);
   }
 
-  const escCell = v => String(v).replace(/\|/g, '\\|');
+  // A line break inside a cell would split the row and make the whole save unreadable.
+  const escCell = v => String(v).replace(/[\r\n]+/g, ' ').replace(/\|/g, '\\|');
 
   // A podcast's hours are derived from four numbers, so the four numbers are what
   // gets saved. Storing only the total would freeze a growing show at whatever it
@@ -757,7 +781,9 @@
   const gameCell = game => !game ? '' : `game=${encodeURIComponent(JSON.stringify(game))}`;
   const detailCell = item => podCell(item.pod) || bookCell(item.book) || youtubeCell(item.youtube) || showCell(item.show) || gameCell(item.game);
 
-  const extraCell = item => encodeURIComponent(JSON.stringify({runtimeScale:item.runtimeScale,
+  // JSON writes Infinity and NaN as null, which the loader rejects. Drop them.
+  const extraCell = item => encodeURIComponent(JSON.stringify({
+    runtimeScale:Number.isFinite(item.runtimeScale) && item.runtimeScale > 0 ? item.runtimeScale : undefined,
     estimateNeeded:item.estimateNeeded, completedAt:item.completedAt, runtimeSource:item.runtimeSource, runtimeBasis:item.runtimeBasis,catalogId:item.catalogId}));
   const stateRows = items => items.map(x =>
     `| ${escCell(x.name)} | ${x.kind} | ${x.hours} | ${detailCell(x)} | ${extraCell(x)} |`).join('\n');
@@ -789,7 +815,7 @@ Target: ${target.gameName}, ${target.releaseDate}. Loading this file restores th
 
 | Item | Kind | Hours | Detail | Metadata |
 | --- | --- | --- | --- | --- |
-${rows || '| (empty) | | | |'}
+${rows || '| (empty) | | | | |'}
 
 ## Completed
 
@@ -1037,6 +1063,6 @@ ${stateRows(completed) || '| (empty) | | | | |'}
     playlistHours, remainingPlaylistHours, nextPlaylistIndex, refreshedPlaylist, parsePlaylistReader,
     estimateLightNovelPages, bookPageCount, prepareBookSuggestions, prepareLightNovelSuggestions,
     calculateSchedule, queuePositionAtHours, forecastTotals, forecastQueue, previewAppend, adjustPodcastCatalogCount, parsePodCell, parseBookCell, parsePlaylistUrl, parseYouTubeCell,
-    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, parseShowCell, serializeState, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, validateReleaseTarget,queueItemsMatch
+    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, normalizeShowEpisodes, parseShowCell, serializeState, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, validateReleaseTarget,queueItemsMatch
   };
 });

@@ -1,5 +1,6 @@
 // Repeatable development measurement, not a runtime dependency or speed gate.
 const {chromium} = require('playwright');
+const {chromiumPath} = require('./browser-fixture.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
@@ -7,7 +8,7 @@ const runtimeRoot = process.env.RELEASE_QUEUE_BENCH_ROOT || process.env.GTA_BENC
 const label = process.argv[2] || 'final';
 
 (async () => {
-  const browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',
+  const browser = await chromium.launch({executablePath:chromiumPath(),
     headless:true, args:['--no-sandbox']});
   try {
     const context = await browser.newContext({viewport:{width:1280,height:900},
@@ -91,7 +92,7 @@ const label = process.argv[2] || 'final';
       const controls = await page.locator('#quickAdd').evaluate(node=>node.getBoundingClientRect().height);
       measurements[`layout${width}`]={collapsedHeight:height,addControlHeight:controls};
       const styles=async()=>page.evaluate(()=>{
-        const selectors=['.queue-panel','.queue-toolbar','#quickAdd','.readout','.masthead','.bridge-panel',
+        const selectors=['.queue-panel','.queue-toolbar','#quickAdd','.readout','.bridge-panel',
           '.item','.item .wk','.item small','.hours','.drag-handle','.game-progress input',
           '.verdict','.verdict .label','.game-target-form','.scenario-grid',
           '.suggestion','.suggestion small','.suggestion .tail','.suggestion .candidate-coverage'];
@@ -106,6 +107,7 @@ const label = process.argv[2] || 'final';
       const states=measurements.styles[width]={collapsed:await styles()};
       await page.evaluate(()=>{
         setQueueExpanded(true);
+        openAdd(); // Suggestions render inside the add dialog.
         renderPicks([{name:'Known result',kind:'Movie',hours:2,note:'Controlled runtime',rank:0,tier:0}],0,0);
       });
       await page.mouse.move(0,0);
@@ -118,7 +120,7 @@ const label = process.argv[2] || 'final';
       await page.locator('.suggestion').hover();
       await page.waitForTimeout(150);
       states.hover=await styles();
-      await page.evaluate(()=>closeSuggestions());
+      await page.evaluate(()=>{closeSuggestions(); $('addDialog').close();});
       await page.locator('[data-drag-index="0"]').press('Tab');
       await page.waitForTimeout(150);
       states.keyboard=await styles();

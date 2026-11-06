@@ -26,17 +26,19 @@ Then visit [localhost:8000](http://localhost:8000). The app uses plain HTML, CSS
 
 Your queue saves automatically in your browser. In **Settings**, use **Export queue** to download a Markdown backup and **Load file** to restore it. ZIP files containing one Markdown backup are also supported, up to 10 MiB.
 
+If a saved queue in your browser can't be read, Release Queue keeps a copy before saving anything new. Download it from **Settings**.
+
 Browser storage is separate for each URL. Export and import your queue when moving between a local copy and the published site, or between browsers.
 
 ## Development
 
-Run the core checks:
+The tests need Node 22 or later and Playwright. The site itself still needs neither.
 
 ```sh
-node tests/time-bridge-core.test.js
-node tests/playlist-reader.test.cjs
+npm ci
+npm test
 ```
 
-Browser regression suites are in `tests/`; source audits and development notes are in `docs/`.
+`npm test` runs the calculation tests and every browser suite in `tests/`. Browser suites use `CHROMIUM_PATH` if set, then `/usr/bin/chromium`, then Playwright's own Chromium (`npx playwright install chromium`). Failure screenshots land in `test-results/gui/`. Development notes are in `docs/`.
 
-Pushes to `main` run the checks and deploy to GitHub Pages through [deploy.yml](.github/workflows/deploy.yml). `node scripts/prepare-site.mjs` packages the static files for publishing.
+Pushes to `main` run every test and deploy to GitHub Pages through [deploy.yml](.github/workflows/deploy.yml). `node scripts/prepare-site.mjs` packages the static files for publishing.

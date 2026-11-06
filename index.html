@@ -94,19 +94,8 @@ h1,h2,h3{font-family:var(--font-display);font-style:normal;margin:0}
 .icon{width:1em;height:1em;flex:none;fill:currentColor;display:block}
 .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
-/* ---- masthead ---------------------------------------------------------- */
-.masthead{display:flex;justify-content:space-between;align-items:center;gap:var(--s6);
-  padding:var(--s2) 0 var(--s6);border-bottom:1px solid var(--panel-border);margin-bottom:var(--s6)}
-.brand{min-width:0}
-.brand h1{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;font-size:22px;font-weight:600;letter-spacing:-.035em;line-height:1.2;overflow-wrap:anywhere}
-.brand h1 span:last-child{color:var(--primary);font-size:11px;font-weight:600;letter-spacing:0;
-  padding:var(--s1) var(--s2);border-radius:var(--r-sm);background:color-mix(in srgb,var(--primary) 10%,var(--bg))}
-.masthead-tools{display:flex;align-items:center;gap:var(--s5);flex-wrap:wrap}
 .ambient-toggle{height:auto;min-height:36px;padding:var(--s2) var(--s3);font-size:11px;white-space:nowrap;background:transparent}
 .ambient-toggle:disabled{opacity:1;color:var(--muted)}
-.target{display:flex;align-items:center;gap:var(--s3);color:var(--muted);font-size:12px;text-align:right}
-.target .icon{width:19px;height:19px;color:var(--accent)}
-.target b{display:block;color:var(--text);font-family:var(--font-display);font-size:13px;font-weight:500;letter-spacing:0}
 
 /* ---- readout: the one thing you open this to check --------------------- */
 .readout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:var(--s8);margin-bottom:var(--s5);align-items:center;
@@ -219,7 +208,6 @@ details[open]>summary::before{transform:rotate(45deg)}
 .launch-position small{color:var(--muted);font-size:12px}
 
 /* ---- work area --------------------------------------------------------- */
-.work{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:var(--s5);align-items:start}
 .game-picker{margin-top:var(--s5);background:var(--surface);border:1px solid var(--panel-border);border-radius:var(--r-md)}
 .game-picker>summary{padding:var(--s3) var(--s4);overflow-wrap:anywhere;min-height:44px}
 .game-picker .disclosure-body{padding:var(--s4);border-top:1px solid var(--border)}
@@ -302,6 +290,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .persist button{font-size:11px;font-weight:500;padding:var(--s2);height:auto;background:transparent;border-color:transparent;color:var(--muted)}
 .persist-actions button{white-space:nowrap}
 .prompt-copy{margin-bottom:var(--s3);color:var(--muted);font-size:12px}
+.unreadable-save{margin:var(--s3) 0;padding:var(--s3) var(--s4);border-left:2px solid var(--neg);border-radius:var(--r-sm);background:var(--raised);font-size:12px}
+.unreadable-save p{margin:0 0 var(--s2);color:var(--text)}
 .prompt-copy p{margin:0 0 var(--s2)}
 .prompt-copy textarea{display:block;width:100%;min-height:180px;resize:vertical;padding:var(--s3);
   font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm)}
@@ -479,7 +469,7 @@ main>[data-reveal]:nth-child(3){transition-delay:140ms}
 
 /* ---- responsive -------------------------------------------------------- */
 @media (max-width:900px){
-  .readout,.work{grid-template-columns:minmax(0,1fr)}
+  .readout{grid-template-columns:minmax(0,1fr)}
   .verdict{border-left:0;border-top:1px solid var(--border);padding:var(--s5) 0 0}
   .add{grid-template-columns:minmax(0,1fr) 1fr}
   .search-field{grid-column:1/-1}
@@ -492,7 +482,6 @@ main>[data-reveal]:nth-child(3){transition-delay:140ms}
   .web-add-grid:not(.youtube-add-grid)>button{grid-column:1/-1}
 }
 
-.add-heading{margin:var(--s6) 0 var(--s3);font-size:16px}
 .undo-bar,.history-row{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:var(--s3) 0}
 .undo-bar{color:var(--text);font-size:12px}
 .history-row{border-bottom:1px solid var(--border);overflow-wrap:anywhere}
@@ -513,7 +502,7 @@ summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
   .persist-actions{width:100%;display:grid;grid-template-columns:minmax(0,1.8fr) repeat(2,minmax(0,1fr));gap:var(--s1)}
   .persist-actions button{white-space:normal;text-align:left}
   .queue-toolbar{padding:0}
-  .masthead,.readout{margin-bottom:var(--s3)}
+  .readout{margin-bottom:var(--s3)}
   .readout{gap:var(--s3)}
   .verdict{gap:var(--s1)}
   .verdict .label{display:none}
@@ -529,17 +518,11 @@ summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
   .drag-handle,.remove{height:44px;min-width:44px}
   .hours input{height:44px}
   main{padding:var(--s6) var(--s4) var(--s10)}
-  .masthead{flex-direction:column;align-items:flex-start;gap:var(--s3);padding:0 0 var(--s4)}
-  .brand h1{font-size:20px;gap:var(--s2)}
-  .masthead-tools{width:100%;justify-content:space-between;gap:var(--s2);flex-wrap:nowrap}
   .ambient-toggle{font-size:10px;padding:var(--s2);white-space:normal}
-  .target b{font-size:12px}
-  .target{font-size:10px;gap:var(--s2)}
   .readout,.panel{padding:var(--s4)}
   .countdown-label{margin-bottom:var(--s3);font-size:12px}
   .verdict{padding:var(--s3) 0 0}
   .verdict .signal{font-size:20px}
-  .target{text-align:left}
   .item .wk{display:none}
   .item b{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;
     -webkit-line-clamp:2;line-clamp:2}
@@ -1077,6 +1060,10 @@ dialog[open]{animation:dialog-in 160ms var(--ease)}
         </span>
       </div>
       <p>Load a Markdown backup or a ZIP containing one Markdown backup. Files and extracted backups must each be 10 MiB or smaller.</p>
+      <div class="unreadable-save" id="unreadableSave" hidden>
+        <p>A saved queue in this browser could not be read. A copy of it is kept here so later changes cannot overwrite it.</p>
+        <span class="persist-actions"><button id="downloadUnreadable" type="button">Download unreadable save</button><button id="discardUnreadable" type="button">Delete kept copy</button></span>
+      </div>
       <div class="prompt-copy" id="promptCopyFeedback" hidden>
         <p id="promptCopyStatus" role="status" aria-live="polite"></p>
         <div id="promptCopyManual" hidden>
@@ -1471,7 +1458,7 @@ function renderBridge(context){
         ? `The job and recurring commitments leave none of your committed pace for the queue from ${fmtDate(plan.job.date)}, so it stops there.`
         : `The job takes the whole budget from ${fmtDate(plan.job.date)}, so the queue stops there.`
     : plan.slows && isFinite(plan.jobOff)
-      ? `Segments widen after ${fmtDate(plan.job.date)} — same hours, fewer per week once the job starts.`
+      ? `Segments widen after ${fmtDate(plan.job.date)}. Same hours, fewer per week once the job starts.`
     : leadDays && cursor <= daysLeft
       ? `Nothing moves until ${fmtDate(start)}. The queue still clears the marker after that.`
     : cursor > daysLeft
@@ -1601,7 +1588,8 @@ function syncQueueItems({now, bookPace}){
 function itemNote(x, now = new Date()){
   if(x.kind === 'Game') return x.hours > 0 ? `Game · ${num1(x.hours)} hours left`
     : 'Estimate reached · increase total hours or mark finished';
-  if(x.show) return `Show · ${new Set(x.show.episodes.map(e => e.season)).size} seasons · ${x.show.watched} watched · ${x.show.episodes.length - x.show.watched} episodes left${x.show.episodes.some(e => e.availableOn > toDateValue(now)) ? ' · includes upcoming episodes' : ''}${x.show.pinned ? ' · hours edited' : ''}`;
+  const seasons = x.show && new Set(x.show.episodes.map(e => e.season)).size;
+  if(x.show) return `Show · ${seasons} season${seasons === 1 ? '' : 's'} · ${x.show.watched} watched · ${x.show.episodes.length - x.show.watched} episode${x.show.episodes.length - x.show.watched === 1 ? '' : 's'} left${x.show.episodes.some(e => e.availableOn > toDateValue(now)) ? ' · includes upcoming episodes' : ''}${x.show.pinned ? ' · hours edited' : ''}`;
   if(x.youtube){
     const total = x.youtube.durations?.length;
     return total ? `YouTube playlist · ${total} videos · ${x.youtube.watched} watched · ${total - x.youtube.watched} left`
@@ -1742,7 +1730,7 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
     stalled: ['No time available', plan.ytStalls
       ? 'Reduce recurring YouTube or increase your weekly budget to make room for the queue.'
       : `From ${fmtDate(plan.job.date)}, no queue time remains. Adjust the job or weekly budget, or use available-hours mode if work is already accounted for.`],
-    shipped: ['The target date is here', `Your planning date for ${SITE_CONFIG.gameShortName} has arrived.`],
+    shipped: ['The target date is here', `Your planning date for ${SITE_CONFIG.gameShortName} has arrived. Choose your next release in Settings to keep planning. Your queue stays in place.`],
     empty:   ['Build your queue before launch.', 'Add games, shows, books, or podcasts to fill the wait.'],
     ahead:   waiting ? ['Gaps while episodes arrive', 'Your queue waits for known airdates. Move available items earlier to cover that time.']
       : ['Room for a little more', `Starting ${leadDays ? fmtDate(start) : 'today'}, you finish around ${finishLabel}.`],
@@ -2039,9 +2027,15 @@ function resetEstimate(index){
 }
 function setRemainingEstimate(item, value){
   commitQueueChange(`Updated estimate for ${item.name}`, () => {
-    if(item.book || item.youtube?.durations || item.show || item.pod){
-      item.runtimeScale = value / calculatedHours(item);
+    const calculated = calculatedHours(item);
+    if((item.book || item.youtube?.durations || item.show || item.pod) && calculated > 0){
+      item.runtimeScale = value / calculated;
       for(const details of [item.book, item.show, item.pod]) if(details) details.pinned = false;
+    }else if(item.book || item.show || item.pod){
+      // Nothing left to scale, such as a podcast whose projected growth ended
+      // at release. Keep the typed hours as a fixed correction instead.
+      delete item.runtimeScale;
+      for(const details of [item.book, item.show, item.pod]) if(details) details.pinned = true;
     }else if(!item.youtube){
       item.runtimeSource = 'Your remaining-time estimate'; item.runtimeBasis = 'manual';
     }
@@ -2598,6 +2592,41 @@ function applyState(parsed){
   return queue.length;
 }
 
+// A save that fails validation is never silently replaced. It is copied here
+// first; if even that copy fails, autosave stays off until the user acts.
+const UNREADABLE_KEY = STORE_KEY + '.unreadable';
+let saveBlocked = false, unreadableText = null;
+function readUnreadableSave(){
+  try{ return localStorage.getItem(UNREADABLE_KEY) || unreadableText; }catch(error){ return unreadableText; }
+}
+function syncUnreadableSave(){
+  $('unreadableSave').hidden = !readUnreadableSave();
+}
+function keepUnreadableSave(text){
+  try{ if(localStorage.getItem(UNREADABLE_KEY) === text) return true; }catch(error){ return false; }
+  for(const clear of [() => {}, () => localStorage.removeItem(STORE_KEY + '.undo')]){
+    try{ clear(); localStorage.setItem(UNREADABLE_KEY, text); return true; }
+    catch(error){ /* Retry once with Undo history cleared, then give up. */ }
+  }
+  return false;
+}
+$('downloadUnreadable').onclick = () => {
+  const text = readUnreadableSave();
+  if(!text) return syncUnreadableSave();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:'text/markdown'}));
+  a.download = 'release-queue-unreadable.md';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('discardUnreadable').onclick = () => {
+  try{ localStorage.removeItem(UNREADABLE_KEY); }catch(error){ /* Nothing else to clean up. */ }
+  saveBlocked = false; unreadableText = null;
+  syncUnreadableSave();
+  setSaveStatus('Deleted the kept copy of the unreadable save.');
+  saveState();
+};
+
 let saveTimer, savePending = false, pendingSaveNote;
 function setSaveStatus(message){
   $('saveState').textContent = message;
@@ -2615,6 +2644,10 @@ function flushSave(){
   if(!savePending) return;
   clearTimeout(saveTimer);
   savePending = false;
+  if(saveBlocked){
+    setSaveStatus('Changes could not be saved locally because an unreadable save could not be copied first. Use Export queue to keep this queue.');
+    return;
+  }
   try{
     const text = serializeState();
     try{ localStorage.setItem(STORE_KEY, text); }
@@ -2658,7 +2691,11 @@ function loadState(){
   if(!text) return false;
   const parsed = parseStateText(text);
   if(!parsed.ok){
-    setSaveStatus('The local save is invalid. Your current queue was left unchanged.');
+    unreadableText = text;
+    saveBlocked = !keepUnreadableSave(text);
+    syncUnreadableSave();
+    setSaveStatus(`Your saved queue could not be read. ${parsed.error} `
+      + (saveBlocked ? 'Autosave is paused so it is not overwritten.' : 'A copy is kept in Settings.'));
     return false;
   }
   const n = applyState(parsed);
@@ -2949,7 +2986,8 @@ async function findBooks(query, signal = null){
     if(hours) facts.push(`about ${hours}h at your pace`);
     return {
       kind:'Book',
-      name:`${d.title}${d.authors.length ? ` — ${d.authors[0]}` : ''}`,
+      // Duplicate matching ignores punctuation, so older "Title — Author" names still match.
+      name:`${d.title}${d.authors.length ? `, ${d.authors[0]}` : ''}`,
       matchText:d.matchText,
       sourceRank:d.sourceRank,
       matchScore:d.matchScore,
@@ -3423,14 +3461,14 @@ async function showProfile(showId){
   // Fill isolated runtime gaps with the show's average instead of dropping those
   // episodes from the total or inventing a ten-episode season.
   const perEp = s.averageRuntime || s.runtime || 45;
-  const episodes = eps.filter(e => Number.isInteger(e.season) && Number.isInteger(e.number))
-    .map(e => {
-      const stamp = e.airstamp ? new Date(e.airstamp) : null;
-      const availableOn = parseDateValue(e.airdate) ? e.airdate
-        : stamp && Number.isFinite(+stamp) ? toDateValue(stamp) : null;
-      return {season:e.season,number:e.number,seconds:Math.round((e.runtime || perEp) * 60),...(availableOn ? {availableOn} : {})};
-    })
-    .sort((a, b) => a.season - b.season || a.number - b.number);
+  // Normalized to the saved-file rules, so a catalog quirk such as a repeated
+  // episode number cannot make the next reload reject the whole queue.
+  const episodes = TimeBridgeCore.normalizeShowEpisodes(eps.map(e => {
+    const stamp = e.airstamp ? new Date(e.airstamp) : null;
+    const availableOn = parseDateValue(e.airdate) ? e.airdate
+      : stamp && Number.isFinite(+stamp) ? toDateValue(stamp) : null;
+    return {season:e.season,number:e.number,seconds:Math.round((e.runtime || perEp) * 60),...(availableOn ? {availableOn} : {})};
+  }));
   if(!episodes.length) throw new Error('No numbered episodes found');
   return {episodes, watched:0};
 }
@@ -4568,6 +4606,7 @@ $('startDate').value = $('jobStart').value = toDateValue(new Date());
 setYtUnit('day', {renderNow:false});
 setReleaseTarget(DEFAULT_SITE_CONFIG);
 loadState();
+syncUnreadableSave();
 try{
   const savedUndo = JSON.parse(localStorage.getItem(STORE_KEY + '.undo') || '[]');
   if(Array.isArray(savedUndo)) for(const entry of savedUndo.slice(-20)){

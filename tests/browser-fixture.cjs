@@ -4,6 +4,9 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
+// Prefer CHROMIUM_PATH, then a system Chromium, then Playwright's own download (CI).
+const chromiumPath = () => process.env.CHROMIUM_PATH
+  || (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
 
 // One browser per suite, fresh storage per protocol, cleanup on every failure.
 async function runBrowserSuite({contextOptions = {}, network = null, clockDate = '2026-09-22T12:00:00-05:00'}, check){
@@ -22,7 +25,7 @@ async function runBrowserSuite({contextOptions = {}, network = null, clockDate =
       server.once('error',reject);
       server.listen(0,'127.0.0.1',resolve);
     });
-    browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',
+    browser = await chromium.launch({executablePath:chromiumPath(),
       headless:true, args:['--no-sandbox']});
     for(const url of [`http://127.0.0.1:${server.address().port}`,`file://${root}/index.html`]){
       const context = await browser.newContext({timezoneId:'America/Chicago',...contextOptions});
@@ -62,4 +65,4 @@ async function openAddDialog(page, section){
   if(section && !await page.locator(`#${section}`).evaluate(el=>el.open))
     await page.locator(`#${section} > summary`).click();
 }
-module.exports={runBrowserSuite,goToView,openAddDialog};
+module.exports={runBrowserSuite,goToView,openAddDialog,chromiumPath};

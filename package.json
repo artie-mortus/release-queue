@@ -1,0 +1,11 @@
+{
+  "name": "release-queue",
+  "private": true,
+  "description": "Test tooling only. The site itself runs from index.html with no install or build step.",
+  "scripts": {
+    "test": "node --test --test-concurrency=4 tests/*.test.js tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}

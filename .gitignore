@@ -4,3 +4,4 @@
 _site/
 test-results/
 .tastemaker/
+node_modules/

@@ -964,3 +964,52 @@ test('portable saves restore a validated release target and still accept legacy 
   }
   assert.equal(core.parseStateText(save + '\n<!-- queue-target:v1 %broken -->').ok, false);
 });
+
+// Every state the app can hold must load again. One rejected row makes the
+// whole autosave unreadable, so the serializer guards what the loader rejects.
+const roundTrip = queue => core.parseStateText(core.serializeState({appName:'Release Queue',
+  target:{gameName:'Grand Theft Auto VI',gameShortName:'GTA VI',releaseDate:'2026-11-19',dateLabel:'Official',sourceUrl:''},
+  savedAt:new Date('2026-11-05T12:00:00Z'), queue, completed:[],
+  schedule:{scheduleMode:'simple',sleepStart:'2',sleepEnd:'7',pace:'21',startDate:'2026-11-05',jobHours:'0',
+    jobDate:'2026-11-05',ytUnit:'day',ytAmount:'0',grassHours:0,bookPagesPerHour:190}}));
+
+test('saves drop non-finite runtime scales instead of writing an unreadable null', () => {
+  const parsed = roundTrip([{name:'Short podcast',kind:'Podcast',hours:5,runtimeScale:Infinity,
+    pod:{eps:1,avgMin:2,perWeek:0,ongoing:false,pinned:true,backlog:0}}]);
+  assert.equal(parsed.ok, true, parsed.error);
+  assert.equal(parsed.queue[0].runtimeScale, undefined);
+  assert.equal(parsed.queue[0].hours, 5);
+});
+
+test('saves keep a title with a line break on one row', () => {
+  const parsed = roundTrip([{name:'Line one\nline two | piped',kind:'Movie',hours:2}]);
+  assert.equal(parsed.ok, true, parsed.error);
+  assert.equal(parsed.queue[0].name, 'Line one line two | piped');
+});
+
+test('an empty queue writes a full-width placeholder row', () => {
+  const text = core.serializeState({appName:'Release Queue',
+    target:{gameName:'G',gameShortName:'G',releaseDate:'2026-11-19',dateLabel:'D',sourceUrl:''},
+    savedAt:new Date(), queue:[], completed:[], schedule:{}});
+  const queueRow = text.split('## Queue')[1].split('\n').find(line => line.includes('(empty)'));
+  assert.equal(queueRow.split('|').length - 2, 5);
+});
+
+test('catalog episode lists are normalized to what the save loader accepts', () => {
+  const episodes = core.normalizeShowEpisodes([
+    {season:1,number:2,seconds:1800},
+    {season:1,number:1,seconds:1800,availableOn:'2026-02-30'},
+    {season:1,number:2,seconds:2400},
+    {season:1,number:0,seconds:600},
+    {season:2,number:1,seconds:200000},
+    {season:null,number:3,seconds:1800},
+    {season:2,number:2,seconds:0}
+  ]);
+  assert.deepEqual(episodes, [
+    {season:1,number:1,seconds:1800},
+    {season:1,number:2,seconds:1800},
+    {season:2,number:1,seconds:86400}
+  ]);
+  const parsed = roundTrip([{name:'Show',kind:'Show',hours:24.5,show:{episodes,watched:0}}]);
+  assert.equal(parsed.ok, true, parsed.error);
+});
