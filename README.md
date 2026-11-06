@@ -32,6 +32,8 @@ Browser storage is separate for each URL. Export and import your queue when movi
 
 ## Development
 
+`index.html` has the markup and styles. `app.js` has the interface code, and `time-bridge-core.js` has the calculations and save format. All three load as plain classic scripts, so the page still opens straight from disk.
+
 The tests need Node 22 or later and Playwright. The site itself still needs neither.
 
 ```sh

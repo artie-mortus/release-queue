@@ -99,9 +99,11 @@ runBrowserSuite({contextOptions:{viewport:{width:390,height:844},reducedMotion:'
     await choosePick({name:'Unknown-runtime movie',kind:'Movie',qid:'Q123'});
   });
   assert.equal(await page.locator('#addDialog').isVisible(),false);
-  assert.match(await page.locator('#toast').textContent(),/2 hours placeholder/);
-  assert.equal(await page.locator('#toast').isVisible(),true);
-  await page.locator('#toast').getByRole('button',{name:'Edit estimate'}).click();
+  assert.match(await page.locator('#undoMessage').textContent(),/2 hours placeholder/);
+  assert.equal(await page.locator('#undoBar').isVisible(),true);
+  assert.equal(await page.locator('#toast').isVisible(),false,'Additions report once, in the Undo bar');
+  await page.locator('#undoBar').getByRole('button',{name:'Edit estimate'}).click();
+  assert.equal(await page.locator('#undoAction').isVisible(),false,'The follow-up action is used once');
   await page.waitForFunction(()=>document.activeElement.matches('[data-hours]'));
   await page.keyboard.insertText('3');
   await page.keyboard.press('Tab');
@@ -113,7 +115,7 @@ runBrowserSuite({contextOptions:{viewport:{width:390,height:844},reducedMotion:'
     addToQueue({name:'Old favorite',kind:'Movie',hours:2});
     flushSave();
   });
-  assert.match(await page.locator('#toast').textContent(),/finished a matching item before/);
+  assert.match(await page.locator('#undoMessage').textContent(),/finished a matching item before/);
   assert.equal(await page.locator('#duplicateDialog').isVisible(),false,'Completed history is a reminder, not a blocked addition');
   await page.reload();
   assert.equal(await page.evaluate(()=>queue.find(item=>item.name==='Scheduled show').show.episodes[1].availableOn),'2026-10-02');
