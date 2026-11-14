@@ -33,6 +33,9 @@ runBrowserSuite({}, async ({url, context, page: first}) => {
   // let the 400 ms autosave finish before the other tab makes its change.
   await second.evaluate(() => { addToQueue({name:'From second', kind:'Movie', hours:1}); clearTimeout(saveTimer); });
   await first.evaluate(() => { addToQueue({name:'Also first', kind:'Movie', hours:1}); flushSave(); });
+  // The writing renderer can finish before the other tab sees its storage
+  // update, especially for file URLs. Test a stale write after that update arrives.
+  await second.waitForFunction(() => /Also first/.test(readSavedText()));
   await second.evaluate(() => flushSave());
   await second.locator('#storageNotice').waitFor();
   assert.match(await saved(first), /Also first/);
@@ -54,6 +57,7 @@ runBrowserSuite({}, async ({url, context, page: first}) => {
   assert.equal(await second.locator('#storageNotice').isVisible(), false);
 
   // The first tab can load the newer save instead, dropping its own edit.
+  await first.waitForFunction(() => /Second again/.test(readSavedText()));
   await first.evaluate(() => flushSave());
   await first.locator('#loadNewerSave').waitFor();
   await first.locator('#loadNewerSave').click();
@@ -75,8 +79,9 @@ runBrowserSuite({}, async ({url, context, page: first}) => {
     useReleaseTarget({...currentReleaseTarget(),gameName:'Remote target',gameShortName:'Remote'});
     flushSave();
   });
+  await second.waitForFunction(() => /Remote target/.test(readSavedText()));
   await second.evaluate(() => syncSavedState());
-  assert.equal(await second.locator('#targetGameName').inputValue(),'Remote target');
+  await second.waitForFunction(() => $('targetGameName').value === 'Remote target');
   await second.evaluate(() => {
     $('targetGameName').value='My unsaved target';
     $('targetGameName').dispatchEvent(new Event('input',{bubbles:true}));
@@ -88,8 +93,9 @@ runBrowserSuite({}, async ({url, context, page: first}) => {
     $('targetReleaseZone').value='UTC';
   });
   await first.evaluate(() => { addToQueue({name:'While drafting',kind:'Movie',hours:1}); flushSave(); });
+  await second.waitForFunction(() => /While drafting/.test(readSavedText()));
   await second.evaluate(() => syncSavedState());
-  assert.ok((await names(second)).includes('While drafting'));
+  await second.waitForFunction(() => queue.some(item => item.name === 'While drafting'));
   assert.equal(await second.locator('#targetGameName').inputValue(),'My unsaved target');
   assert.equal(await second.locator('#targetGameDate').inputValue(),'2030-12-01');
   assert.equal(await second.locator('#targetReleaseMode').inputValue(),'global');

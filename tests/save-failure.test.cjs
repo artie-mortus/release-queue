@@ -36,6 +36,7 @@ runBrowserSuite({},async ({page,url,context}) => {
     });
     assert.match(await page.locator('#saveState').textContent(),/Could not save locally/);
     await second.evaluate(() => {addToQueue({name:'Remote edit',kind:'Movie',hours:1});flushSave();});
+    await page.waitForFunction(() => /Remote edit/.test(readSavedText()));
     await page.evaluate(() => syncSavedState());
     assert.deepEqual(await page.evaluate(() => queue.map(item => item.name)),['Original','Unsaved local'],
       'A failed write must not allow automatic replacement of unsaved local changes');
