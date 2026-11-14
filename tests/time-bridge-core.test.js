@@ -1005,6 +1005,55 @@ test('release schedules survive portable saves and invalid schedules reject the 
   }
 });
 
+const xboxReleaseFixture = () => ({ProductId:'9P3H4968GRSM',ProductType:'Game',Properties:{},
+  LocalizedProperties:[{ProductTitle:'Next Game',Markets:['US','NZ']}],
+  MarketProperties:[{OriginalReleaseDate:'9998-12-30T00:00:00Z',Markets:['US']}],
+  DisplaySkuAvailabilities:[{Sku:{SkuType:'full',Properties:{IsPreOrder:true,IsTrial:false}},Availabilities:[{
+    Markets:['US'],Actions:['Details','Purchase'],Properties:{PreOrderReleaseDate:'2030-06-15T04:00:00.0000000Z'},
+    Conditions:{StartDate:'2029-01-01T00:00:00Z',ClientConditions:{AllowedPlatforms:[{PlatformName:'Windows.Xbox'}]}}
+  }]}]});
+test('Xbox release lookup uses an explicit preorder unlock for the requested market and platform', () => {
+  const product = xboxReleaseFixture();
+  assert.deepEqual(core.xboxReleaseOptions([product],{market:'US',platform:'xbox'}),[{
+    productId:product.ProductId,title:'Next Game',instant:'2030-06-15T04:00:00.000Z',
+    sourceField:'Availabilities.Properties.PreOrderReleaseDate'}]);
+  assert.deepEqual(core.xboxReleaseOptions([product],{market:'NZ',platform:'xbox'}),[]);
+  assert.deepEqual(core.xboxReleaseOptions([product],{market:'US',platform:'ms-pc'}),[]);
+  product.DisplaySkuAvailabilities[0].Availabilities[0].Conditions.ClientConditions.AllowedPlatforms = [{PlatformName:'Windows.Desktop'}];
+  assert.equal(core.xboxReleaseOptions([product],{market:'US',platform:'ms-pc'}).length,1);
+});
+test('Xbox lookup rejects placeholders, date-only values, conflicting unlocks, trials and sales dates', () => {
+  for(const value of ['9998-12-30T00:00:00Z','1753-01-01T00:00:00Z','2030-06-15','not a date','2030-06-15T04:00:01Z']){
+    const product = xboxReleaseFixture();
+    product.DisplaySkuAvailabilities[0].Availabilities[0].Properties.PreOrderReleaseDate = value;
+    assert.deepEqual(core.xboxReleaseOptions([product],{market:'US'}),[]);
+  }
+  for(const change of [p=>{p.Properties.IsDemo=true;},p=>{p.ProductType='Durable';},
+    p=>{p.DisplaySkuAvailabilities[0].Sku.Properties.IsTrial=true;},
+    p=>{p.DisplaySkuAvailabilities[0].Sku.Properties.IsPreOrder=false;},
+    p=>{delete p.DisplaySkuAvailabilities[0].Availabilities[0].Properties.PreOrderReleaseDate;},
+    p=>{const other=structuredClone(p.DisplaySkuAvailabilities[0]);other.Availabilities[0].Properties.PreOrderReleaseDate='2030-06-16T04:00:00Z';p.DisplaySkuAvailabilities.push(other);}]){
+    const product = xboxReleaseFixture(); change(product);
+    assert.deepEqual(core.xboxReleaseOptions([product],{market:'US'}),[]);
+  }
+});
+test('automatic lookup context and source evidence survive saves without weakening validation', () => {
+  const target = {gameName:'Next Game',gameShortName:'Next Game',releaseDate:'2030-06-15',dateLabel:'Store-listed release time',sourceUrl:'',
+    releaseSchedule:{mode:'regional',time:'04:00',timeZone:'UTC'},releaseContext:{platform:'xbox',market:'US',automatic:true},
+    releaseEvidence:{provider:'xbox',sourceUrl:'https://www.xbox.com/en-us/games/store/-/9P3H4968GRSM',edition:'Next Game',
+      sourceField:'Availabilities.Properties.PreOrderReleaseDate',checkedAt:'2026-11-14T00:00:00.000Z',productId:'9P3H4968GRSM'}};
+  const marked = value => portableSave('| My queue | Game | 10 | | |') + `\n<!-- queue-target:v1 ${encodeURIComponent(JSON.stringify(value))} -->`;
+  assert.deepEqual(core.parseStateText(marked(target)).target,target);
+  for(const change of [{releaseContext:{platform:'unknown',market:'US',automatic:true}},
+    {releaseContext:{platform:'xbox',market:'<US>',automatic:true}},
+    {releaseEvidence:{...target.releaseEvidence,sourceUrl:'javascript:alert(1)'}},
+    {releaseEvidence:{...target.releaseEvidence,sourceUrl:'https://www.xbox.com.evil.test/game'}},
+    {releaseEvidence:{...target.releaseEvidence,productId:'invalid'}},
+    {releaseEvidence:{...target.releaseEvidence,checkedAt:'not a date'}}]){
+    assert.equal(core.parseStateText(marked({...target,...change})).ok,false);
+  }
+});
+
 // Every state the app can hold must load again. One rejected row makes the
 // whole autosave unreadable, so the serializer guards what the loader rejects.
 const roundTrip = queue => core.parseStateText(core.serializeState({appName:'Release Queue',

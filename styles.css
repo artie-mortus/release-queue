@@ -196,6 +196,8 @@ details[open]>summary::before{transform:rotate(45deg)}
 .game-target-form .game-target-actions{grid-column:1/-1;display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
 .game-target-actions button{white-space:nowrap}
 .game-schedule-note{grid-column:1/-1;margin:0;overflow-wrap:anywhere}
+.release-auto-toggle{display:flex;align-items:center;gap:8px;font-size:12px;min-height:44px}
+.release-auto-toggle input{min-height:20px;min-width:20px;accent-color:var(--accent)}
 .game-target-actions a{color:var(--accent);font-size:12px;text-underline-offset:3px;display:inline-flex;align-items:center;min-height:44px}
 .game-target-actions a:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .game-picker .note{margin:var(--s3) 0 0;overflow-wrap:anywhere}

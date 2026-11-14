@@ -6,12 +6,14 @@ Plan what to play, watch, and read before a game releases. Release Queue estimat
 
 - Track games, TV, movies, books, podcasts, web fiction, and YouTube playlists.
 - Choose a target game and release date.
-- Set a regional unlock time or a worldwide release time with its announced time zone. The countdown shows the equivalent local time and saves the schedule with your queue. Game search provides dates only; check your platform's publisher or store for unlock times. Date-only targets use local midnight as a planning estimate until a time is confirmed.
+- Look up regional unlock times for Xbox and PC / Microsoft Store preorders. PC / Steam and PlayStation use verified publisher or store schedules where available. The countdown converts the result to your local time and saves its platform, store country, edition, and source with your queue.
 - Adjust your weekly time budget and recurring YouTube time.
 - See projected finish dates and compare different paces.
 - Record progress, keep completed items, and undo changes.
 
 Runtime estimates are editable. Missing runtimes need an estimate, and public lookup services may sometimes be unavailable.
+
+Release-time lookup starts automatically when you choose a game and refreshes saved automatic targets when you reopen the app. Xbox is selected initially. The browser's time zone and language suggest a store country, which you can change to match your account. A store country can span several time zones, so the store's timestamp takes precedence over an assumed local midnight. Lookup failures keep a saved schedule. Unknown unlock times remain labeled as planning estimates, and manual entry is still available. Steam and PlayStation do not allow the tested browser API requests, so automatic coverage there is limited to the bundled, source-linked schedules. Source checks and the current catalog are documented in [release-time-sources.md](docs/release-time-sources.md).
 
 ## Run locally
 

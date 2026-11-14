@@ -748,6 +748,14 @@
     }catch(error){ return null; }
   }
 
+  function validReleaseSource(value){
+    try{
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password && !url.port
+        && ['www.xbox.com','store.playstation.com','www.playstation.com','support.rockstargames.com','bethesda.net'].includes(url.hostname);
+    }catch(error){ return false; }
+  }
+
   function validateReleaseTarget(value){
     if(!value || typeof value !== 'object') return null;
     const cleanText = (text, limit) => typeof text === 'string' && text.trim().length > 0
@@ -757,10 +765,58 @@
     const sourceUrl = value.sourceUrl || '';
     if(typeof sourceUrl !== 'string' || (sourceUrl && !/^https:\/\/www\.wikidata\.org\/wiki\/Q\d+$/.test(sourceUrl))) return null;
     if(!releaseTargetDate(value)) return null;
+    const context = value.releaseContext, evidence = value.releaseEvidence;
+    if(context !== undefined && (!context || !['xbox','ms-pc','pc','ps5'].includes(context.platform)
+      || typeof context.market !== 'string' || !/^(?:[A-Z]{2})?$/.test(context.market)
+      || typeof context.automatic !== 'boolean')) return null;
+    if(evidence !== undefined && (!evidence || !context || !value.releaseSchedule
+      || !['xbox','publisher','playstation'].includes(evidence.provider) || !validReleaseSource(evidence.sourceUrl)
+      || !cleanText(evidence.edition,120) || !cleanText(evidence.sourceField,120)
+      || typeof evidence.checkedAt !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(evidence.checkedAt)
+      || !Number.isFinite(Date.parse(evidence.checkedAt)) || new Date(evidence.checkedAt).toISOString() !== evidence.checkedAt
+      || (evidence.productId !== undefined && (typeof evidence.productId !== 'string' || !/^[A-Z0-9]{12}$/.test(evidence.productId)))
+      || (evidence.note !== undefined && !cleanText(evidence.note,400)))) return null;
     return {gameName:value.gameName.trim(), gameShortName:value.gameShortName.trim(),
       releaseDate:value.releaseDate, dateLabel:value.dateLabel.trim(), sourceUrl,
       ...(value.releaseSchedule === undefined ? {} : {releaseSchedule:{mode:value.releaseSchedule.mode,
-        time:value.releaseSchedule.time, timeZone:value.releaseSchedule.timeZone}})};
+        time:value.releaseSchedule.time, timeZone:value.releaseSchedule.timeZone}}),
+      ...(context === undefined ? {} : {releaseContext:{platform:context.platform,market:context.market,automatic:context.automatic}}),
+      ...(evidence === undefined ? {} : {releaseEvidence:{provider:evidence.provider,sourceUrl:evidence.sourceUrl,
+        edition:evidence.edition,sourceField:evidence.sourceField,checkedAt:evidence.checkedAt,
+        ...(evidence.productId ? {productId:evidence.productId} : {}), ...(evidence.note ? {note:evidence.note} : {})}})};
+  }
+
+  // Only explicit preorder unlocks count as future release times. Availability
+  // start dates describe when an offer goes on sale, and can precede launch.
+  function xboxReleaseOptions(products, {market,platform = 'xbox'} = {}){
+    const instant = value => {
+      if(typeof value !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value)) return null;
+      const date = new Date(value);
+      return Number.isFinite(+date) && date.getUTCFullYear() >= 1970 && date.getUTCFullYear() <= 2200
+        && date.getUTCSeconds() === 0 && date.getUTCMilliseconds() === 0 ? date.toISOString() : null;
+    };
+    const options = [];
+    for(const product of Array.isArray(products) ? products : []){
+      if(typeof product?.ProductId !== 'string' || !/^[A-Z0-9]{12}$/.test(product.ProductId)
+        || product.Properties?.IsDemo || product.ProductType !== 'Game') continue;
+      const title = product.LocalizedProperties?.find(row => row.Markets?.includes(market))?.ProductTitle;
+      if(typeof title !== 'string' || !title.trim() || title.length > 120) continue;
+      const releases = new Set();
+      for(const row of product.DisplaySkuAvailabilities || []){
+        if(row.Sku?.SkuType !== 'full' || !row.Sku.Properties?.IsPreOrder || row.Sku.Properties.IsTrial) continue;
+        for(const availability of row.Availabilities || []){
+          if(!availability.Markets?.includes(market) || !availability.Actions?.includes('Purchase')) continue;
+          const platforms = availability.Conditions?.ClientConditions?.AllowedPlatforms || [];
+          if(!platforms.some(value => value.PlatformName === (platform === 'ms-pc' ? 'Windows.Desktop' : 'Windows.Xbox'))) continue;
+          const date = instant(availability.Properties?.PreOrderReleaseDate);
+          if(date) releases.add(date);
+        }
+      }
+      // Conflicting full-SKU timestamps require clarification from the store.
+      if(releases.size !== 1) continue;
+      options.push({productId:product.ProductId,title,instant:[...releases][0],sourceField:'Availabilities.Properties.PreOrderReleaseDate'});
+    }
+    return options;
   }
 
   function queueItemsMatch(a,b){
@@ -832,6 +888,7 @@
 
 Saved ${savedAt.toLocaleString()}. Use Load file in ${appName} to restore this queue and its settings.
 Target: ${target.gameName}, ${target.releaseDate}${target.releaseSchedule ? ` at ${target.releaseSchedule.time} ${target.releaseSchedule.timeZone}, ${target.releaseSchedule.mode === 'regional' ? 'regional unlock' : 'worldwide release'}` : ', time unconfirmed'}. Loading this file restores this game and release schedule.
+${target.releaseContext ? `Release platform: ${target.releaseContext.platform}. Store country: ${target.releaseContext.market || 'unspecified'}. Automatic lookup: ${target.releaseContext.automatic ? 'on' : 'off'}.\n` : ''}${target.releaseEvidence ? `Release-time source: ${target.releaseEvidence.sourceUrl}. Edition: ${target.releaseEvidence.edition}. Checked: ${target.releaseEvidence.checkedAt}.\n` : ''}
 
 ## Schedule
 
@@ -1099,6 +1156,6 @@ ${stateRows(completed) || '| (empty) | | | | |'}
     playlistHours, remainingPlaylistHours, nextPlaylistIndex, refreshedPlaylist, parsePlaylistReader,
     estimateLightNovelPages, bookPageCount, prepareBookSuggestions, prepareLightNovelSuggestions,
     calculateSchedule, queuePositionAtHours, forecastTotals, forecastQueue, previewAppend, adjustPodcastCatalogCount, parsePodCell, parseBookCell, parsePlaylistUrl, parseYouTubeCell,
-    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, normalizeShowEpisodes, parseShowCell, serializeState, sameSavedContent, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, releaseTargetDate, validateReleaseTarget,queueItemsMatch
+    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, normalizeShowEpisodes, parseShowCell, serializeState, sameSavedContent, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, releaseTargetDate, validateReleaseTarget,xboxReleaseOptions,queueItemsMatch
   };
 });

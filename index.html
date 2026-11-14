@@ -271,10 +271,17 @@ document.title = APP_NAME;
         <div class="field"><label for="targetGameName">Game title</label><input id="targetGameName" name="targetGameName" maxlength="120" autocomplete="off" required></div>
         <div class="field"><label for="targetGameDate">Release date</label><input id="targetGameDate" name="targetGameDate" type="date" min="1900-01-01" max="9999-12-31" required aria-describedby="gameDateNote"></div>
         <div class="field" id="gameDatesField" hidden><label for="gameDates">Dates listed by source</label><select id="gameDates" name="gameDates"></select></div>
+        <div class="field"><label for="targetReleasePlatform">Release platform</label><select id="targetReleasePlatform"><option value="xbox">Xbox</option><option value="ms-pc">PC / Microsoft Store</option><option value="pc">PC / Steam</option><option value="ps5">PlayStation 5</option></select></div>
+        <div class="field"><label for="targetReleaseMarket">Store country</label><select id="targetReleaseMarket" aria-describedby="releaseLocationNote"></select></div>
+        <div class="game-target-actions"><label class="release-auto-toggle"><input type="checkbox" id="autoReleaseTime" checked> Look up release time automatically</label><button type="button" id="lookupReleaseTime">Look up time</button></div>
+        <p class="note game-schedule-note" id="releaseLocationNote"></p>
+        <p class="note game-schedule-note" id="releaseLookupStatus" role="status"></p>
+        <div class="field" id="releaseEditionField" hidden><label for="releaseEdition">Choose the store listing</label><select id="releaseEdition"></select></div>
+        <a class="text-link game-schedule-note" id="releaseTimeSource" target="_blank" rel="noopener noreferrer" hidden>View release-time source</a>
         <div class="field"><label for="targetReleaseMode">Release timing</label><select id="targetReleaseMode" aria-describedby="releaseScheduleNote"><option value="date">Date only, time unconfirmed</option><option value="regional">Unlocks by region</option><option value="global">Same moment worldwide</option></select></div>
         <div class="field" id="targetReleaseTimeField" hidden><label for="targetReleaseTime">Announced unlock time</label><input id="targetReleaseTime" type="time" step="60" value="00:00" disabled></div>
         <div class="field" id="targetReleaseZoneField" hidden><label for="targetReleaseZone" id="targetReleaseZoneLabel">Release region / time zone</label><input id="targetReleaseZone" list="releaseTimeZones" autocomplete="off" placeholder="America/Chicago" maxlength="100" disabled aria-describedby="releaseScheduleNote releaseSchedulePreview"><datalist id="releaseTimeZones"></datalist></div>
-        <p class="note game-schedule-note" id="releaseScheduleNote">Game search provides dates only. Check the publisher or store for your platform's unlock schedule.</p>
+        <p class="note game-schedule-note" id="releaseScheduleNote">Automatic lookup checks your platform and store country for a release time.</p>
         <p class="note game-schedule-note" id="releaseSchedulePreview" role="status"></p>
         <div class="game-target-actions"><button class="primary" id="useGame" type="submit">Use game</button><button id="resetGame" type="button">Restore initial target</button><a id="gameSource" target="_blank" rel="noopener noreferrer" hidden>View release source</a></div>
       </form>

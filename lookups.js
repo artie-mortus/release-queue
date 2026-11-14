@@ -127,6 +127,86 @@ const WD = 'https://www.wikidata.org/w/api.php?origin=*&format=json&';
 const WP = 'https://en.wikipedia.org/w/api.php?origin=*&format=json&';
 const ANILIST = 'https://graphql.anilist.co';
 const FETCH_TIMEOUT = 4000; // A source that has not answered by now is not going to.
+
+/* ---- release schedules -------------------------------------------------
+   Xbox exposes regional preorder unlocks without a key or proxy. Other
+   platforms use individually verified publisher/store schedules. See
+   docs/release-time-sources.md for browser checks and source limitations. */
+const RELEASE_PLATFORMS = {xbox:'Xbox', 'ms-pc':'PC / Microsoft Store', pc:'PC / Steam', ps5:'PlayStation 5'};
+const RELEASE_MARKETS = {US:'United States',GB:'United Kingdom',CA:'Canada',AU:'Australia',NZ:'New Zealand',
+  AT:'Austria',BE:'Belgium',BR:'Brazil',CL:'Chile',CO:'Colombia',CZ:'Czechia',DK:'Denmark',FI:'Finland',FR:'France',DE:'Germany',
+  GR:'Greece',HK:'Hong Kong',HU:'Hungary',IN:'India',IE:'Ireland',IL:'Israel',IT:'Italy',JP:'Japan',KR:'South Korea',MX:'Mexico',
+  NL:'Netherlands',NO:'Norway',PL:'Poland',PT:'Portugal',SA:'Saudi Arabia',SG:'Singapore',ZA:'South Africa',ES:'Spain',
+  SE:'Sweden',CH:'Switzerland',TW:'Taiwan',TR:'Türkiye',AE:'United Arab Emirates'};
+function detectReleaseMarket(timeZone, languages = []){
+  const zones = {US:['America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Detroit','America/Phoenix','America/Anchorage','Pacific/Honolulu','America/Indiana/Indianapolis','America/Indianapolis','America/Boise','America/Adak','America/Juneau'],
+    CA:['America/Toronto','America/Vancouver','America/Edmonton','America/Winnipeg','America/Halifax','America/St_Johns','America/Regina'],
+    GB:['Europe/London'],AU:['Australia/Sydney','Australia/Melbourne','Australia/Brisbane','Australia/Adelaide','Australia/Perth','Australia/Hobart','Australia/Darwin'],
+    NZ:['Pacific/Auckland','Pacific/Chatham'],JP:['Asia/Tokyo'],KR:['Asia/Seoul'],IN:['Asia/Kolkata','Asia/Calcutta'],
+    DE:['Europe/Berlin'],FR:['Europe/Paris'],ES:['Europe/Madrid','Atlantic/Canary'],IT:['Europe/Rome'],IE:['Europe/Dublin'],
+    MX:['America/Mexico_City','America/Monterrey','America/Tijuana'],BR:['America/Sao_Paulo','America/Manaus'],
+    PT:['Europe/Lisbon','Atlantic/Azores'],ZA:['Africa/Johannesburg'],SG:['Asia/Singapore'],HK:['Asia/Hong_Kong'],TW:['Asia/Taipei'],
+    AT:['Europe/Vienna'],BE:['Europe/Brussels'],CH:['Europe/Zurich'],CZ:['Europe/Prague'],DK:['Europe/Copenhagen'],
+    FI:['Europe/Helsinki'],GR:['Europe/Athens'],HU:['Europe/Budapest'],NL:['Europe/Amsterdam'],NO:['Europe/Oslo'],
+    PL:['Europe/Warsaw'],SE:['Europe/Stockholm'],SA:['Asia/Riyadh'],AE:['Asia/Dubai'],TR:['Europe/Istanbul','Asia/Istanbul'],
+    CL:['America/Santiago'],CO:['America/Bogota'],IL:['Asia/Jerusalem']};
+  for(const [market,values] of Object.entries(zones)) if(values.includes(timeZone)) return market;
+  for(const language of languages){
+    try{ const market = new Intl.Locale(language).region; if(RELEASE_MARKETS[market]) return market; }catch(error){ /* Try the next language. */ }
+  }
+  return '';
+}
+const VERIFIED_RELEASE_SCHEDULES = [
+  {names:['Starfield'],platforms:['pc','ms-pc','xbox'],instant:'2023-09-06T00:00:00.000Z',
+    provider:'publisher',sourceUrl:'https://bethesda.net/en-US/news/starfield-launch-details-pc-specs-and-more',
+    edition:'Starfield · standard launch',sourceField:'Publisher global release schedule',checkedAt:'2026-11-14T00:00:00.000Z'},
+  // Store-country instants, not an inferred midnight in every device zone.
+  ...Object.entries({US:['2026-11-19T05:00:00.000Z','en-us','EP1004-PPSA01547_00-GTAVISTANDARD001'],
+    GB:['2026-11-19T00:00:00.000Z','en-gb','EP1004-PPSA01547_00-GTAVISTANDARD001'],
+    NZ:['2026-11-18T11:00:00.000Z','en-nz','EP1004-PPSA38500_00-GTAVISTANDARD001'],
+    AU:['2026-11-18T13:00:00.000Z','en-au','EP1004-PPSA38500_00-GTAVISTANDARD001']}).map(([market,[instant,locale,id]]) => ({
+      names:['Grand Theft Auto VI','GTA VI','GTA 6'],platforms:['ps5'],market,instant,provider:'playstation',
+      sourceUrl:`https://store.playstation.com/${locale}/product/${id}`,edition:'Grand Theft Auto VI · Standard Edition',
+      sourceField:'Store product releaseDate',checkedAt:'2026-11-14T00:00:00.000Z',
+      note:'Uses the store-country timestamp. Rockstar\'s general local-midnight wording may differ within a country.'}))
+];
+const releaseTitleKey = title => TimeBridgeCore.loose(title).replace(/\s+standard edition$/, '').trim();
+function publishedReleaseSchedule(name, context){
+  const record = VERIFIED_RELEASE_SCHEDULES.find(record => record.platforms.includes(context.platform)
+    && (!record.market || record.market === context.market) && record.names.some(alias => releaseTitleKey(alias) === releaseTitleKey(name)));
+  return record ? {instant:record.instant,mode:record.market ? 'regional' : 'global',evidence:{provider:record.provider,
+    sourceUrl:record.sourceUrl,edition:record.edition,sourceField:record.sourceField,checkedAt:record.checkedAt,
+    ...(record.note ? {note:record.note} : {})}} : null;
+}
+async function findReleaseSchedules(name, context, signal = null){
+  signal?.throwIfAborted();
+  const published = publishedReleaseSchedule(name,context);
+  if(!['xbox','ms-pc'].includes(context.platform)) return published ? [published] : [];
+  if(!RELEASE_MARKETS[context.market]) return [];
+  const base = 'https://displaycatalog.mp.microsoft.com/v7.0/';
+  try{
+    const search = await jget(base + 'productFamilies/autosuggest?' + new URLSearchParams({query:name,
+      market:context.market,languages:'en-us',productFamilyNames:'Games'}),signal);
+    const candidates = (search.Results || []).filter(row => row.ProductFamilyName === 'Games')
+      .flatMap(row => row.Products || []).filter(row => row.Type === 'Game' && /^[A-Z0-9]{12}$/.test(row.ProductId)
+        && typeof row.Title === 'string' && releaseTitleKey(row.Title) === releaseTitleKey(name));
+    const ids = [...new Set(candidates.map(row => row.ProductId))].slice(0,8);
+    if(!ids.length) return published ? [published] : [];
+    const data = await jget(base + 'products?' + new URLSearchParams({bigIds:ids.join(','),market:context.market,languages:'en-us'}),signal);
+    const options = TimeBridgeCore.xboxReleaseOptions((data.Products || []).filter(product => ids.includes(product.ProductId)),context)
+      .filter(option => releaseTitleKey(option.title) === releaseTitleKey(name));
+    if(!options.length) return published ? [published] : [];
+    const distinct = options.filter((option,index) => options.findIndex(other => other.instant === option.instant) === index);
+    return distinct.map(option => ({instant:option.instant,mode:'regional',evidence:{provider:'xbox',
+      sourceUrl:`https://www.xbox.com/en-${context.market.toLowerCase()}/games/store/-/${option.productId}`,
+      edition:option.title,sourceField:option.sourceField,productId:option.productId,checkedAt:new Date().toISOString(),
+      ...(releaseTitleKey(name) === 'grand theft auto vi' ? {note:'Uses the store-country timestamp. Rockstar\'s general local-midnight wording may differ within a country.'} : {})}}));
+  }catch(error){
+    signal?.throwIfAborted();
+    if(published) return [published];
+    throw error;
+  }
+}
 const providerIntervals = {'openlibrary.org':1000, 'graphql.anilist.co':2100, 'itunes.apple.com':3100};
 const providerStates = new Map();
 function providerState(url){

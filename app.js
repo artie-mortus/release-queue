@@ -32,16 +32,19 @@ function fromDateValue(v){
 let TARGET = releaseTargetDate(SITE_CONFIG);
 if(!TARGET) throw new Error('SITE_CONFIG.releaseDate must be a valid YYYY-MM-DD date.');
 function currentReleaseTarget(){
-  const {gameName, gameShortName, releaseDate, dateLabel, sourceUrl = '', releaseSchedule} = SITE_CONFIG;
+  const {gameName, gameShortName, releaseDate, dateLabel, sourceUrl = '', releaseSchedule,releaseContext,releaseEvidence} = SITE_CONFIG;
   return {gameName, gameShortName, releaseDate, dateLabel, sourceUrl,
-    ...(releaseSchedule ? {releaseSchedule} : {})};
+    ...(releaseSchedule ? {releaseSchedule} : {}), ...(releaseContext ? {releaseContext} : {}),
+    ...(releaseEvidence ? {releaseEvidence} : {})};
 }
 function setReleaseTarget(target){
   SITE_CONFIG = Object.freeze({...DEFAULT_SITE_CONFIG, ...target});
   TARGET = releaseTargetDate(SITE_CONFIG);
   document.title = `${APP_NAME} · ${SITE_CONFIG.gameName}`;
   $('brandName').textContent = SITE_CONFIG.gameName;
-  $('targetLabel').textContent = SITE_CONFIG.releaseSchedule
+  $('targetLabel').textContent = SITE_CONFIG.releaseEvidence
+    ? `${RELEASE_PLATFORMS[SITE_CONFIG.releaseContext.platform]} · ${RELEASE_MARKETS[SITE_CONFIG.releaseContext.market] || 'worldwide'} · ${SITE_CONFIG.releaseEvidence.provider === 'publisher' ? 'publisher schedule' : 'store-listed time'}`
+    : SITE_CONFIG.releaseSchedule
     ? `${SITE_CONFIG.releaseSchedule.mode === 'regional' ? 'Regional unlock' : 'Worldwide release'} · ${SITE_CONFIG.releaseSchedule.timeZone}`
     : `${SITE_CONFIG.dateLabel} · time unconfirmed`;
   $('targetDate').textContent = formatReleaseDate();
@@ -1648,7 +1651,11 @@ $('importFile').onchange = async () => {
     render({forceQueue:true});
     saveState(`Loaded ${n} item${n === 1 ? '' : 's'} from ${file.name}.`);
   }catch(error){
-    setSaveStatus(`Could not load ${file.name}. ${error.message}`);
+    const message = `Could not load ${file.name}. ${error.message}`;
+    // An earlier valid edit may still be saving. Keep the import error visible
+    // when that write finishes rather than replacing it with a success notice.
+    if(savePending) pendingSaveNote = message;
+    setSaveStatus(message);
   }finally{
     $('importFile').value = ''; // so re-picking the same file fires change again
   }
@@ -1658,10 +1665,94 @@ $('importFile').onchange = async () => {
    Public Wikibase API, shared request timeout/cache/pacing with media lookup.
    Day-precision Gregorian claims only; uncertain dates remain manual. */
 let gameLookupController = null, gameDraftSource = '', gameDraftDate = '';
+let autoReleaseController = null, gameDraftEvidence = null, releaseLookupOptions = [];
 const browserReleaseZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const releaseZones = new Set(['UTC',browserReleaseZone,...(Intl.supportedValuesOf?.('timeZone') ||
   ['America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Europe/London','Europe/Berlin','Asia/Tokyo','Australia/Sydney','Pacific/Auckland'])]);
 $('releaseTimeZones').replaceChildren(...[...releaseZones].sort().map(zone => new Option(zone,zone)));
+$('targetReleaseMarket').replaceChildren(new Option('Choose store country',''),
+  ...Object.entries(RELEASE_MARKETS).sort((a,b) => a[1].localeCompare(b[1])).map(([code,name]) => new Option(name,code)));
+const detectedReleaseMarket = detectReleaseMarket(browserReleaseZone,navigator.languages || [navigator.language]);
+function draftReleaseContext(){
+  return {platform:$('targetReleasePlatform').value,market:$('targetReleaseMarket').value,automatic:$('autoReleaseTime').checked};
+}
+function cancelAutoReleaseLookup(){
+  autoReleaseController?.abort(); autoReleaseController = null;
+  $('lookupReleaseTime').disabled = false;
+}
+function showReleaseEvidence(){
+  $('releaseTimeSource').hidden = !gameDraftEvidence;
+  if(!gameDraftEvidence) return;
+  $('releaseTimeSource').href = gameDraftEvidence.sourceUrl;
+  const context = draftReleaseContext();
+  $('releaseLookupStatus').textContent = `${RELEASE_PLATFORMS[context.platform]} · ${RELEASE_MARKETS[context.market] || 'worldwide'} · ${gameDraftEvidence.edition}. `
+    + `${gameDraftEvidence.provider === 'publisher' ? 'Publisher schedule' : 'Store-listed release time'}, checked ${fmtDate(new Date(gameDraftEvidence.checkedAt))}. ${gameDraftEvidence.note || ''}`;
+}
+function clearDraftReleaseEvidence(){
+  gameDraftEvidence = null; releaseLookupOptions = [];
+  $('releaseEditionField').hidden = $('releaseTimeSource').hidden = true;
+  $('releaseLookupStatus').textContent = '';
+}
+function targetFromReleaseDraft(){
+  const name = $('targetGameName').value.trim(), date = $('targetGameDate').value;
+  return validateReleaseTarget({gameName:name,gameShortName:name === SITE_CONFIG.gameName ? SITE_CONFIG.gameShortName : name,releaseDate:date,
+    dateLabel:gameDraftEvidence ? (gameDraftEvidence.provider === 'publisher' ? 'Publisher release schedule' : 'Store-listed release time')
+      : gameDraftSource && date === gameDraftDate ? 'Wikidata release date' : 'Your planned release date',sourceUrl:gameDraftSource,
+    releaseContext:draftReleaseContext(), ...(draftReleaseSchedule() ? {releaseSchedule:draftReleaseSchedule()} : {}),
+    ...(gameDraftEvidence ? {releaseEvidence:gameDraftEvidence} : {})});
+}
+function applyReleaseLookupOption(option, commit){
+  const date = new Date(option.instant);
+  $('targetGameDate').value = date.toISOString().slice(0,10);
+  gameDraftEvidence = option.evidence;
+  resetReleaseScheduleForm({mode:option.mode,time:date.toISOString().slice(11,16),timeZone:'UTC'});
+  $('gameDateNote').textContent = `Release time from ${RELEASE_PLATFORMS[draftReleaseContext().platform]}. The countdown shows your local time.`;
+  $('gameSearchStatus').textContent = 'Release schedule found. Use game to update your countdown.';
+  showReleaseEvidence(); syncUseGameButton();
+  if(commit){
+    const target = targetFromReleaseDraft();
+    if(!target || saveBlocked || saveConflict) return;
+    checkpoint('Updated release time');
+    setReleaseTarget(target); lastSig = null;
+    render({forceQueue:true,animate:false});
+    saveState('Updated release time from ' + (option.evidence.provider === 'xbox' ? 'Xbox' : 'the verified schedule'));
+  }
+}
+async function lookupReleaseTime({commit = false} = {}){
+  cancelAutoReleaseLookup();
+  if(!$('autoReleaseTime').checked) return;
+  const name = $('targetGameName').value.trim(), context = draftReleaseContext();
+  if(!name) return;
+  if(['xbox','ms-pc','ps5'].includes(context.platform) && !context.market){
+    $('releaseLookupStatus').textContent = 'Choose your store country to look up its release time.'; return;
+  }
+  const controller = new AbortController(); autoReleaseController = controller;
+  $('lookupReleaseTime').disabled = true;
+  syncUseGameButton();
+  $('releaseLookupStatus').textContent = `Looking up ${RELEASE_PLATFORMS[context.platform]} release time for ${name}…`;
+  $('releaseEditionField').hidden = true;
+  try{
+    const options = await findReleaseSchedules(name,context,controller.signal);
+    if(controller.signal.aborted) return;
+    releaseLookupOptions = options;
+    if(options.length === 1) applyReleaseLookupOption(options[0],commit);
+    else if(options.length > 1){
+      $('releaseEdition').replaceChildren(new Option('Choose a listing',''),...options.map((option,index) =>
+        new Option(`${option.evidence.edition} · ${new Date(option.instant).toLocaleString()}`,String(index))));
+      $('releaseEditionField').hidden = false;
+      $('releaseLookupStatus').textContent = 'Several store listings have release times. Choose the edition you own.';
+    }else{
+      $('releaseLookupStatus').textContent = gameDraftEvidence ? 'No newer unlock time found. Keeping the saved schedule.'
+        : 'Release time unconfirmed for this platform and country. Your date remains a planning estimate; you can check the store or enter a time manually.';
+    }
+  }catch(error){
+    if(!controller.signal.aborted) $('releaseLookupStatus').textContent = gameDraftEvidence
+      ? 'Release-time lookup is unavailable. Keeping the saved schedule.'
+      : 'Release-time lookup is unavailable. Your date remains a planning estimate. Try again later or enter a time manually.';
+  }finally{
+    if(autoReleaseController === controller){ autoReleaseController = null; $('lookupReleaseTime').disabled = false; syncUseGameButton(); }
+  }
+}
 function draftReleaseSchedule(){
   return $('targetReleaseMode').value === 'date' ? undefined : {
     mode:$('targetReleaseMode').value, time:$('targetReleaseTime').value, timeZone:$('targetReleaseZone').value.trim()
@@ -1681,8 +1772,10 @@ function syncReleaseScheduleForm(){
     $(`targetRelease${part}`).required = timed;
   }
   $('targetReleaseZoneLabel').textContent = mode === 'global' ? 'Time zone of the announced time' : 'Your store region / time zone';
-  $('releaseScheduleNote').textContent = mode === 'date'
-    ? 'Game search provides dates only. Check the publisher or store for your platform\'s unlock schedule.'
+  $('releaseScheduleNote').textContent = gameDraftEvidence
+    ? 'Release time filled from the linked source. Editing the time switches off automatic lookup.'
+    : mode === 'date'
+    ? 'Automatic lookup checks store unlocks and verified publisher schedules. A release date alone does not confirm a time.'
     : mode === 'regional'
       ? 'Enter the unlock time for your platform and store region. Your browser\'s time zone is selected initially. Check the publisher or store; search does not confirm unlock times.'
       : 'Enter the announced date, time and time zone. Everyone counts down to that same moment. Check the publisher or store for your platform.';
@@ -1702,10 +1795,21 @@ function cancelGameLookup(){
 }
 function syncGameTargetForm(){
   cancelGameLookup();
+  cancelAutoReleaseLookup();
   $('targetGameName').value = SITE_CONFIG.gameName;
   $('targetGameDate').value = SITE_CONFIG.releaseDate;
   gameDraftSource = SITE_CONFIG.sourceUrl || '';
   gameDraftDate = SITE_CONFIG.releaseDate;
+  const context = SITE_CONFIG.releaseContext || {platform:'xbox',market:detectedReleaseMarket,automatic:!SITE_CONFIG.releaseSchedule};
+  $('targetReleasePlatform').value = context.platform;
+  // Retain valid imported country choices even if they are outside the shortlist.
+  if(context.market && !$('targetReleaseMarket').querySelector(`option[value="${context.market}"]`))
+    $('targetReleaseMarket').add(new Option(context.market,context.market));
+  $('targetReleaseMarket').value = context.market;
+  $('autoReleaseTime').checked = context.automatic;
+  $('releaseLocationNote').textContent = `Your local time zone is ${browserReleaseZone}. Store country is inferred initially; change it if your account uses another country.`;
+  clearDraftReleaseEvidence(); gameDraftEvidence = SITE_CONFIG.releaseEvidence || null;
+  showReleaseEvidence();
   $('gameDatesField').hidden = true;
   $('gameResults').replaceChildren();
   $('gameSource').hidden = !gameDraftSource;
@@ -1730,6 +1834,7 @@ function gameReleaseDates(entity){
 async function searchReleaseGames(event){
   event.preventDefault();
   cancelGameLookup();
+  cancelAutoReleaseLookup();
   const query = $('gameSearch').value.trim();
   $('gameResults').replaceChildren();
   if(query.length < 2){ $('gameSearchStatus').textContent = 'Enter at least 2 characters to search games.'; return; }
@@ -1762,6 +1867,7 @@ async function searchReleaseGames(event){
 }
 async function pickReleaseGame(game){
   cancelGameLookup();
+  cancelAutoReleaseLookup(); clearDraftReleaseEvidence();
   const controller = new AbortController();
   gameLookupController = controller;
   gameDraftSource = `https://www.wikidata.org/wiki/${game.id}`;
@@ -1788,18 +1894,21 @@ async function pickReleaseGame(game){
       : dates.length ? 'Release date from Wikidata. Check the source or edit the date for your platform.'
       : 'No exact release day is listed. Enter an announced date or your own planning date.';
     $('gameSearchStatus').textContent = dates.length ? 'Release details loaded. Use game to update your countdown.' : 'This game needs a release date before you can use it.';
+    if($('autoReleaseTime').checked) await lookupReleaseTime();
   }catch(error){
     if(!controller.signal.aborted){
       $('gameSearchStatus').textContent = 'Could not load the release date. Enter it below, or search again.';
       $('gameDateNote').textContent = 'Enter an announced date or your own planning date.';
+      if($('autoReleaseTime').checked) await lookupReleaseTime();
     }
   }finally{
     if(gameLookupController === controller){ cancelGameLookup(); syncUseGameButton(); }
   }
 }
 function syncUseGameButton(){
+  const date = syncReleaseScheduleForm();
   $('useGame').disabled = !$('targetGameName').value.trim() || !$('targetGameDate').validity.valid
-    || !syncReleaseScheduleForm();
+    || !date || !!autoReleaseController;
 }
 function useReleaseTarget(target){
   checkpoint('Changed target game');
@@ -1820,6 +1929,10 @@ $('gameSearch').oninput = () => {
 for(const id of ['targetGameName', 'targetGameDate']) $(id).oninput = () => {
   const loading = !!gameLookupController;
   cancelGameLookup();
+  cancelAutoReleaseLookup();
+  const hadEvidence = !!gameDraftEvidence;
+  clearDraftReleaseEvidence();
+  if(hadEvidence){ resetReleaseScheduleForm(); if(id === 'targetGameDate') $('autoReleaseTime').checked = false; }
   if(loading) $('gameSearchStatus').textContent = 'Lookup stopped. You can enter the details below.';
   $('gameTargetStatus').textContent = '';
   if(id === 'targetGameName'){
@@ -1831,17 +1944,38 @@ for(const id of ['targetGameName', 'targetGameDate']) $(id).oninput = () => {
   syncUseGameButton();
 };
 for(const id of ['targetReleaseMode','targetReleaseTime','targetReleaseZone']) $(id).oninput = () => {
+  cancelGameLookup(); cancelAutoReleaseLookup(); clearDraftReleaseEvidence();
+  $('autoReleaseTime').checked = false;
   $('gameTargetStatus').textContent = '';
   syncUseGameButton();
 };
-$('gameDates').onchange = () => { $('targetGameDate').value = $('gameDates').value; gameDraftDate = $('gameDates').value; syncUseGameButton(); };
+$('autoReleaseTime').onchange = () => {
+  cancelAutoReleaseLookup();
+  if($('autoReleaseTime').checked) lookupReleaseTime();
+  syncUseGameButton();
+};
+$('lookupReleaseTime').onclick = () => { $('autoReleaseTime').checked = true; lookupReleaseTime(); };
+for(const id of ['targetReleasePlatform','targetReleaseMarket']) $(id).onchange = () => {
+  cancelGameLookup(); cancelAutoReleaseLookup();
+  const hadEvidence = !!gameDraftEvidence;
+  clearDraftReleaseEvidence();
+  if(hadEvidence) resetReleaseScheduleForm();
+  if($('autoReleaseTime').checked) lookupReleaseTime();
+  syncUseGameButton();
+};
+$('releaseEdition').onchange = () => {
+  const value = $('releaseEdition').value;
+  if(value !== '' && releaseLookupOptions[Number(value)]) applyReleaseLookupOption(releaseLookupOptions[Number(value)],false);
+};
+$('gameDates').onchange = () => {
+  cancelAutoReleaseLookup(); clearDraftReleaseEvidence(); resetReleaseScheduleForm();
+  $('targetGameDate').value = $('gameDates').value; gameDraftDate = $('gameDates').value;
+  syncUseGameButton();
+  if($('autoReleaseTime').checked) lookupReleaseTime();
+};
 $('gameTargetForm').onsubmit = event => {
   event.preventDefault();
-  const name = $('targetGameName').value.trim(), date = $('targetGameDate').value;
-  const fromSource = !!gameDraftSource && date === gameDraftDate;
-  const target = validateReleaseTarget({gameName:name, gameShortName:name, releaseDate:date,
-    dateLabel:fromSource ? 'Wikidata release date' : 'Your planned release date', sourceUrl:gameDraftSource,
-    ...(draftReleaseSchedule() ? {releaseSchedule:draftReleaseSchedule()} : {})});
+  const target = targetFromReleaseDraft();
   if(!target){ $('gameTargetStatus').textContent = 'Enter a game title and a valid release date and schedule.'; return; }
   useReleaseTarget(target);
 };
@@ -2786,6 +2920,7 @@ loadUndoHistory();
 render();
 readWorkspaceRoute();
 booted = true;
+if($('autoReleaseTime').checked) lookupReleaseTime({commit:true});
 let countdownTimer, renderTimer, playlistTimer, playlistStartupTimer;
 function startVisibleWork(){
   if(document.hidden) return;
