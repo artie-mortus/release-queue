@@ -978,6 +978,33 @@ test('portable saves restore a validated release target and still accept legacy 
   assert.equal(core.parseStateText(save + '\n<!-- queue-target:v1 %broken -->').ok, false);
 });
 
+test('release schedules resolve regional dates, worldwide instants, DST and fractional offsets', () => {
+  const resolve = (releaseDate,time,timeZone,mode='regional') => core.releaseTargetDate({releaseDate,
+    releaseSchedule:{mode,time,timeZone}})?.toISOString();
+  assert.equal(resolve('2030-06-15','00:00','America/New_York'),'2030-06-15T04:00:00.000Z');
+  assert.equal(resolve('2030-01-15','00:00','America/New_York'),'2030-01-15T05:00:00.000Z');
+  assert.equal(resolve('2030-06-15','00:00','Pacific/Auckland'),'2030-06-14T12:00:00.000Z');
+  assert.equal(resolve('2030-06-15','00:00','Asia/Kathmandu'),'2030-06-14T18:15:00.000Z');
+  assert.equal(resolve('2030-06-15','04:00','UTC','global'),'2030-06-15T04:00:00.000Z');
+  assert.equal(resolve('2026-03-08','02:30','America/Chicago'),undefined);
+  assert.equal(resolve('2026-11-01','01:30','America/Chicago'),undefined);
+  assert.equal(resolve('2026-11-01','02:30','America/Chicago'),'2026-11-01T08:30:00.000Z');
+});
+
+test('release schedules survive portable saves and invalid schedules reject the entire save', () => {
+  const target = {gameName:'Regional game',gameShortName:'Regional game',releaseDate:'2030-06-15',
+    dateLabel:'Planning date',sourceUrl:'',releaseSchedule:{mode:'regional',time:'00:00',timeZone:'America/New_York'}};
+  const marked = value => portableSave('| My queue | Game | 10 | | |')
+    + `\n<!-- queue-target:v1 ${encodeURIComponent(JSON.stringify(value))} -->`;
+  assert.deepEqual(core.parseStateText(marked(target)).target,target);
+  for(const releaseSchedule of [null,{}, {mode:'unknown',time:'00:00',timeZone:'UTC'},
+    {mode:'global',time:'24:00',timeZone:'UTC'}, {mode:'regional',time:'00:00',timeZone:'Mars/Olympus'},
+    {mode:'regional',time:'00:00',timeZone:42}]){
+    assert.equal(core.validateReleaseTarget({...target,releaseSchedule}),null);
+    assert.equal(core.parseStateText(marked({...target,releaseSchedule})).ok,false);
+  }
+});
+
 // Every state the app can hold must load again. One rejected row makes the
 // whole autosave unreadable, so the serializer guards what the loader rejects.
 const roundTrip = queue => core.parseStateText(core.serializeState({appName:'Release Queue',

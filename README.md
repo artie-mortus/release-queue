@@ -6,6 +6,7 @@ Plan what to play, watch, and read before a game releases. Release Queue estimat
 
 - Track games, TV, movies, books, podcasts, web fiction, and YouTube playlists.
 - Choose a target game and release date.
+- Set a regional unlock time or a worldwide release time with its announced time zone. The countdown shows the equivalent local time and saves the schedule with your queue. Game search provides dates only; check your platform's publisher or store for unlock times. Date-only targets use local midnight as a planning estimate until a time is confirmed.
 - Adjust your weekly time budget and recurring YouTube time.
 - See projected finish dates and compare different paces.
 - Record progress, keep completed items, and undo changes.

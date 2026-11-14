@@ -719,6 +719,35 @@
     }catch(error){ return null; }
   }
 
+  // Resolve a publisher's wall-clock time using the zone's offset on that date.
+  // Reject skipped or repeated DST times instead of silently guessing an instant.
+  function releaseTargetDate(target){
+    const date = parseDateValue(target?.releaseDate, {local:!target?.releaseSchedule, minYear:1900});
+    if(!date) return null;
+    const schedule = target.releaseSchedule;
+    if(schedule === undefined) return date;
+    if(!schedule || !['regional','global'].includes(schedule.mode)
+      || typeof schedule.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time)
+      || typeof schedule.timeZone !== 'string' || schedule.timeZone.length > 100
+      || !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)*$/.test(schedule.timeZone)) return null;
+    try{
+      const formatter = new Intl.DateTimeFormat('en-GB', {timeZone:schedule.timeZone,
+        year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23'});
+      const wallTime = instant => {
+        const parts = Object.fromEntries(formatter.formatToParts(instant).map(part => [part.type,part.value]));
+        return Date.UTC(+parts.year,+parts.month - 1,+parts.day,+parts.hour,+parts.minute,+parts.second);
+      };
+      const [hours,minutes] = schedule.time.split(':').map(Number);
+      const wanted = +date + hours * 3600000 + minutes * 60000;
+      const offsets = new Set([-36,-24,-12,0,12,24,36].map(hour => {
+        const sample = wanted + hour * 3600000;
+        return wallTime(sample) - sample;
+      }));
+      const candidates = [...offsets].map(offset => wanted - offset).filter(instant => wallTime(instant) === wanted);
+      return candidates.length === 1 ? new Date(candidates[0]) : null;
+    }catch(error){ return null; }
+  }
+
   function validateReleaseTarget(value){
     if(!value || typeof value !== 'object') return null;
     const cleanText = (text, limit) => typeof text === 'string' && text.trim().length > 0
@@ -727,8 +756,11 @@
       || !cleanText(value.dateLabel, 120) || !parseDateValue(value.releaseDate, {minYear:1900})) return null;
     const sourceUrl = value.sourceUrl || '';
     if(typeof sourceUrl !== 'string' || (sourceUrl && !/^https:\/\/www\.wikidata\.org\/wiki\/Q\d+$/.test(sourceUrl))) return null;
+    if(!releaseTargetDate(value)) return null;
     return {gameName:value.gameName.trim(), gameShortName:value.gameShortName.trim(),
-      releaseDate:value.releaseDate, dateLabel:value.dateLabel.trim(), sourceUrl};
+      releaseDate:value.releaseDate, dateLabel:value.dateLabel.trim(), sourceUrl,
+      ...(value.releaseSchedule === undefined ? {} : {releaseSchedule:{mode:value.releaseSchedule.mode,
+        time:value.releaseSchedule.time, timeZone:value.releaseSchedule.timeZone}})};
   }
 
   function queueItemsMatch(a,b){
@@ -799,7 +831,7 @@
 <!-- queue-target:v1 ${encodeURIComponent(JSON.stringify(target))} -->
 
 Saved ${savedAt.toLocaleString()}. Use Load file in ${appName} to restore this queue and its settings.
-Target: ${target.gameName}, ${target.releaseDate}. Loading this file restores this game and release date.
+Target: ${target.gameName}, ${target.releaseDate}${target.releaseSchedule ? ` at ${target.releaseSchedule.time} ${target.releaseSchedule.timeZone}, ${target.releaseSchedule.mode === 'regional' ? 'regional unlock' : 'worldwide release'}` : ', time unconfirmed'}. Loading this file restores this game and release schedule.
 
 ## Schedule
 
@@ -1067,6 +1099,6 @@ ${stateRows(completed) || '| (empty) | | | | |'}
     playlistHours, remainingPlaylistHours, nextPlaylistIndex, refreshedPlaylist, parsePlaylistReader,
     estimateLightNovelPages, bookPageCount, prepareBookSuggestions, prepareLightNovelSuggestions,
     calculateSchedule, queuePositionAtHours, forecastTotals, forecastQueue, previewAppend, adjustPodcastCatalogCount, parsePodCell, parseBookCell, parsePlaylistUrl, parseYouTubeCell,
-    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, normalizeShowEpisodes, parseShowCell, serializeState, sameSavedContent, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, validateReleaseTarget,queueItemsMatch
+    remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseGameCell, normalizeShowEpisodes, parseShowCell, serializeState, sameSavedContent, parseStateText, parseWebNovelMetadata, webStoryPlatform, parseDateValue, releaseTargetDate, validateReleaseTarget,queueItemsMatch
   };
 });

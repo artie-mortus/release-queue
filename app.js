@@ -9,7 +9,7 @@ const {MIN_ITEM_HOURS, MAX_ITEM_HOURS, DEFAULT_BOOK_PAGES_PER_HOUR, LIGHT_NOVEL_
        prepareLightNovelSuggestions, calculateSchedule, adjustPodcastCatalogCount, playlistHours,
        remainingPlaylistHours, nextPlaylistIndex, refreshedPlaylist, parsePlaylistReader, parseStateText, sameSavedContent, parseWebNovelMetadata,
        remainingGameHours, parseGameMainStory, gameProgress, showProgress, parseDateValue, parsePlaylistUrl, bookProgressMeta, remainingHoursForBook,
-       showRemainingHours, adjustedHours, syncItemHours, resolveItemHoursEdit, forecastTotals, forecastQueue, webStoryPlatform, validateReleaseTarget,queueItemsMatch} = TimeBridgeCore;
+       showRemainingHours, adjustedHours, syncItemHours, resolveItemHoursEdit, forecastTotals, forecastQueue, webStoryPlatform, releaseTargetDate, validateReleaseTarget,queueItemsMatch} = TimeBridgeCore;
 const KIND_ICON = {Game:'game-controller', Show:'television', Movie:'film-reel', Book:'book',
                    Podcast:'microphone-stage', YouTube:'youtube-logo'};
 const num1 = n => +(+n).toFixed(1);
@@ -29,24 +29,38 @@ const toDateValue = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2
 function fromDateValue(v){
   return parseDateValue(v, {local:true});
 }
-let TARGET = fromDateValue(SITE_CONFIG.releaseDate);
+let TARGET = releaseTargetDate(SITE_CONFIG);
 if(!TARGET) throw new Error('SITE_CONFIG.releaseDate must be a valid YYYY-MM-DD date.');
 function currentReleaseTarget(){
-  const {gameName, gameShortName, releaseDate, dateLabel, sourceUrl = ''} = SITE_CONFIG;
-  return {gameName, gameShortName, releaseDate, dateLabel, sourceUrl};
+  const {gameName, gameShortName, releaseDate, dateLabel, sourceUrl = '', releaseSchedule} = SITE_CONFIG;
+  return {gameName, gameShortName, releaseDate, dateLabel, sourceUrl,
+    ...(releaseSchedule ? {releaseSchedule} : {})};
 }
 function setReleaseTarget(target){
   SITE_CONFIG = Object.freeze({...DEFAULT_SITE_CONFIG, ...target});
-  TARGET = fromDateValue(SITE_CONFIG.releaseDate);
+  TARGET = releaseTargetDate(SITE_CONFIG);
   document.title = `${APP_NAME} · ${SITE_CONFIG.gameName}`;
   $('brandName').textContent = SITE_CONFIG.gameName;
-  $('targetLabel').textContent = SITE_CONFIG.dateLabel;
-  $('targetDate').textContent = TARGET.toLocaleDateString('en-GB', {
-    weekday:'short', day:'2-digit', month:'short', year:'numeric'
-  }).replace(/,/g, '');
+  $('targetLabel').textContent = SITE_CONFIG.releaseSchedule
+    ? `${SITE_CONFIG.releaseSchedule.mode === 'regional' ? 'Regional unlock' : 'Worldwide release'} · ${SITE_CONFIG.releaseSchedule.timeZone}`
+    : `${SITE_CONFIG.dateLabel} · time unconfirmed`;
+  $('targetDate').textContent = formatReleaseDate();
   $('selectedGameName').textContent = SITE_CONFIG.gameName;
   scenarioDirty = false;
   syncGameTargetForm();
+}
+function formatReleaseDate(target = TARGET){
+  return target.toLocaleString(undefined, {month:'long',day:'numeric',year:'numeric',
+    ...(SITE_CONFIG.releaseSchedule ? {hour:'numeric',minute:'2-digit',timeZoneName:'short'} : {})});
+}
+const calendarDayFraction = date => (date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds() + date.getMilliseconds() / 1000) / 86400;
+const forecastFinishDate = (now, day) => addDays(midnight(now), SITE_CONFIG.releaseSchedule ? Math.floor(day) : Math.ceil(day));
+// Forecasts use local calendar days. A scheduled unlock includes the fraction
+// of release day before that instant, even if the region is on another date.
+function releasePlanningDays(target, now){
+  if(now >= target) return 0;
+  const fraction = SITE_CONFIG.releaseSchedule ? calendarDayFraction(target) : 0;
+  return Math.max(0, dayNumber(target) - dayNumber(now) + fraction);
 }
 // The tool has no notion of progress already made, so a start before today would
 // quietly claim you had already done those hours. Today is the floor.
@@ -75,7 +89,11 @@ function renderBookPaceHint(bookPace = readBookPace()){
 }
 
 /* ---- countdown --------------------------------------------------------- */
-function renderCountdown(now = new Date()){
+let lastCountdownReached = null;
+function renderCountdown(now = new Date(), updateView = true){
+  const reached = now >= TARGET, changed = lastCountdownReached !== null && reached !== lastCountdownReached;
+  lastCountdownReached = reached;
+  if(booted && changed && updateView){ render({animate:false}); return; }
   const diff = TARGET - now;
   if(diff <= 0){
     $('cd-d').textContent = '00'; $('cd-h').textContent = '00';
@@ -150,7 +168,7 @@ function buildSchedule(paceOverride = null, inputs = readComputationInputs()){
   const {pace, ceiling} = inputs.schedule;
   const fullPace = paceOverride === null ? pace : clampNumber(paceOverride, 1, ceiling, pace);
   const {yt, job, grassHours, now, start} = inputs;
-  const startOff = Math.max(0, dayNumber(start) - dayNumber(now));
+  const startOff = Math.max(SITE_CONFIG.releaseSchedule ? calendarDayFraction(now) : 0, dayNumber(start) - dayNumber(now));
   // A job dated before the queue starts simply applies from the queue's own start.
   const jobOff = job.hours > 0 ? Math.max(startOff, job.startOff) : Infinity;
   const model = calculateSchedule({fullPace, ceiling, ytPerWeek:yt.perWeek, grassHours,
@@ -169,7 +187,7 @@ function buildSchedule(paceOverride = null, inputs = readComputationInputs()){
 function computationContext({timeline = true, inputs = readComputationInputs()} = {}){
   syncQueueItems(inputs);
   const plan = buildSchedule(null, inputs);
-  const daysLeft = Math.max(0, dayNumber(TARGET) - dayNumber(inputs.now));
+  const daysLeft = releasePlanningDays(TARGET, inputs.now);
   const forecast = forecastItems(queue, plan, daysLeft, inputs.now, {timeline});
   return {...inputs, plan, daysLeft, forecast, totalQueued:forecast.totalHours};
 }
@@ -214,8 +232,8 @@ function renderBridge(context){
     const left = pct(from), w = Math.max(0, pct(to) - left);
     const label = w > 7 ? `<span>${esc(x.name)}</span>` : '';
     return `<div class="seg" ${forecast.plays ? `data-tone="${dates.index % 2}"` : ''} style="left:${left}%;width:${w}%"
-      title="${esc(x.name)}, ${fmtHours(x.hours)}. ${isFinite(finishDay) ? `Projected finish ${esc(fmtDate(addDays(now, Math.ceil(finishDay))))}` : 'No finish at this pace'}" role="img"
-      aria-label="${esc(x.name)}, ${fmtHours(x.hours)}, ${isFinite(finishDay) ? `ends ${esc(fmtDate(addDays(now, Math.ceil(finishDay))))}` : 'stalled'}">${label}</div>`;
+      title="${esc(x.name)}, ${fmtHours(x.hours)}. ${isFinite(finishDay) ? `Projected finish ${esc(fmtDate(forecastFinishDate(now, finishDay)))}` : 'No finish at this pace'}" role="img"
+      aria-label="${esc(x.name)}, ${fmtHours(x.hours)}, ${isFinite(finishDay) ? `ends ${esc(fmtDate(forecastFinishDate(now, finishDay)))}` : 'stalled'}">${label}</div>`;
   }).join('');
   // Recurring YouTube is already deducted from the segment pace.
   const ytHours = plan.yt.perDay * Math.max(0,endDay-plan.startOff);
@@ -281,7 +299,7 @@ function renderBridge(context){
 
 function currentForecast(items = queue, plan = null, target = TARGET, now = new Date()){
   plan ||= buildSchedule(null, readComputationInputs(now));
-  return forecastItems(items, plan, Math.max(0, dayNumber(target) - dayNumber(now)), now);
+  return forecastItems(items, plan, releasePlanningDays(target, now), now);
 }
 function coverageText(forecast){
   if(forecast.capacity <= 0) return 'No queue time available before this date.';
@@ -335,7 +353,7 @@ function renderScenarios(context){
     $('scenarioDate').value = SITE_CONFIG.releaseDate;
   }
   if(!$('scenarioPanel').open) return;
-  const target = fromDateValue($('scenarioDate').value);
+  const target = releaseTargetDate({...currentReleaseTarget(),releaseDate:$('scenarioDate').value});
   const pace = Number($('scenarioPace').value);
   const ceiling = schedule.ceiling;
   $('scenarioPace').max = ceiling;
@@ -351,7 +369,7 @@ function renderScenarios(context){
   const items = queue.map(item => item.pod && !item.pod.pinned
     ? {...item, hours:adjustedHours(item, item.pod.backlog + podcastAccrual(item.pod, target, now))} : item);
   const forecast = currentForecast(items, plan, target, now);
-  const releaseDays = dayNumber(target) - dayNumber(now);
+  const releaseDays = releasePlanningDays(target, now);
   const axisDays = Math.max(releaseDays, isFinite(forecast.finishDay) ? forecast.finishDay : releaseDays * 1.5, 1) * 1.04;
   const pct = day => Math.min(100, (isFinite(day) ? day : axisDays) / axisDays * 100);
   $('scenarioTrack').innerHTML = plotSegments(forecast).map(segment => {
@@ -370,7 +388,7 @@ function renderScenarios(context){
   const format = f => f.capacity <= 0 ? 'No queue time' : f.stalled ? 'Queue stalls' : f.missingHours > 0.05
     ? `${num1(f.missingHours)} hours short` : `${num1(f.remainingHours)} hours left`;
   $('scenarioResult').innerHTML = [[shorter,'Shorter runtimes'],[forecast,'Current runtimes'],[longer,'Longer runtimes']]
-    .map(([f,label]) => `<div><span>${label}</span><b>${format(f)}</b><span>${isFinite(f.finishDay) ? `Finishes ${esc(fmtDate(addDays(now, Math.ceil(f.finishDay))))}` : 'Queue has no finish at this pace'}</span></div>`).join('');
+    .map(([f,label]) => `<div><span>${label}</span><b>${format(f)}</b><span>${isFinite(f.finishDay) ? `Finishes ${esc(fmtDate(forecastFinishDate(now, f.finishDay)))}` : 'Queue has no finish at this pace'}</span></div>`).join('');
   const current = context.forecast;
   const delta = num1(forecast.missingHours - current.missingHours);
   const placeholder = queue.some(item => item.estimateNeeded);
@@ -388,7 +406,7 @@ function computationSignature(context){
   return `${schedule.pace}::${schedule.sleepStart}-${schedule.sleepEnd}::${startValue}`
     + `::${plan.job.hoursValue}-${plan.job.dateValue}::${plan.yt.unit}-${plan.yt.value}`
     + `::grass-${plan.grassHours}::book-${bookPace}::${schedule.mode}::${stateRevision}`
-    + `::${SITE_CONFIG.gameName}-${SITE_CONFIG.releaseDate}::${dayNumber(now)}`;
+    + `::${SITE_CONFIG.gameName}-${+TARGET}::${SITE_CONFIG.releaseSchedule ? +now : dayNumber(now)}-${now >= TARGET}`;
 }
 function syncQueueItems({now, bookPace}){
   let changed = false;
@@ -448,7 +466,7 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
   renderBookPaceHint(inputs.bookPace);
   const context = computationContext({inputs});
   const {now, start, plan, forecast, totalQueued, schedule:{sleep, ceiling, pace}} = context;
-  renderCountdown(now);
+  renderCountdown(now, false);
   const released = now >= TARGET;
   $('paceInput').max = ceiling;
   if(+$('paceInput').value > ceiling) $('paceInput').value = ceiling;
@@ -471,13 +489,16 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
   // for episodes. Queue consumption already uses the reduced weekly budget.
   const ytHours = stalled ? 0 : plan.yt.perDay * Math.max(0,finishDay-plan.startOff);
   const total = totalQueued + ytHours;
-  const finish = stalled ? null : addDays(now, Math.ceil(finishDay));
+  const finish = stalled ? null : forecastFinishDate(now, finishDay);
   // Duration comes from the same piecewise calendar walk as the finish date.
   // Dividing by the initial pace lies as soon as a job changes that pace later.
   const activeDays = stalled ? Infinity : Math.max(0, finishDay - leadDays);
   const weeks = activeDays / 7;
-  // Round once, on calendar days, so the buffer always agrees with the finish date beside it.
-  const buffer = stalled ? -Infinity : dayNumber(TARGET) - dayNumber(finish);
+  // Date-only targets round to calendar dates; timed targets compare the actual
+  // day fractions so a short gap before unlock does not become a photo finish.
+  const rawBuffer = stalled ? -Infinity : SITE_CONFIG.releaseSchedule
+    ? context.daysLeft - finishDay : dayNumber(TARGET) - dayNumber(finish);
+  const buffer = Math.abs(rawBuffer) < 1e-8 ? 0 : rawBuffer;
   const waiting = forecast.waitingHours > 0.05;
   const state = released ? 'shipped' : !total ? 'empty'
     : stalled ? 'stalled' : waiting || buffer > 0 ? 'ahead' : buffer === 0 ? 'tie' : 'behind';
@@ -487,7 +508,7 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
   $('sleepTime').textContent = `${sleep} hours`;
   $('committed').textContent = pace;
   const yt = plan.yt;
-  const daysToLaunch = Math.max(0, dayNumber(TARGET) - dayNumber(start));
+  const daysToLaunch = releasePlanningDays(TARGET, start);
   $('ytOut').textContent = yt.perWeek ? `${num1(yt.amount)} h/${yt.unit === 'week' ? 'wk' : 'day'}` : 'none';
   $('ytNote').innerHTML = '<svg class="icon note-icon" aria-hidden="true">'
     + '<use href="#i-youtube-logo"/></svg> ' + (!yt.perWeek
@@ -532,7 +553,8 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
     ? 'Days past the release' : 'Spare days after queue';
   $('buffer').textContent = !total ? '—' : released ? 'target passed' : stalled ? 'never finishes'
     : buffer === 0 ? 'photo finish'
-    : `${Math.abs(buffer)} day${Math.abs(buffer) === 1 ? '' : 's'}`;
+    : SITE_CONFIG.releaseSchedule && Math.abs(buffer) < 1 ? fmtHours(num1(Math.abs(buffer) * 24))
+    : `${num1(Math.abs(buffer))} day${Math.abs(buffer) === 1 ? '' : 's'}`;
   // Tone matches the verdict card, which already scores this backwards on purpose:
   // running past the release is the win, because you still have things left to play.
   // Clearing early means you ran out.
@@ -1636,6 +1658,41 @@ $('importFile').onchange = async () => {
    Public Wikibase API, shared request timeout/cache/pacing with media lookup.
    Day-precision Gregorian claims only; uncertain dates remain manual. */
 let gameLookupController = null, gameDraftSource = '', gameDraftDate = '';
+const browserReleaseZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+const releaseZones = new Set(['UTC',browserReleaseZone,...(Intl.supportedValuesOf?.('timeZone') ||
+  ['America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Europe/London','Europe/Berlin','Asia/Tokyo','Australia/Sydney','Pacific/Auckland'])]);
+$('releaseTimeZones').replaceChildren(...[...releaseZones].sort().map(zone => new Option(zone,zone)));
+function draftReleaseSchedule(){
+  return $('targetReleaseMode').value === 'date' ? undefined : {
+    mode:$('targetReleaseMode').value, time:$('targetReleaseTime').value, timeZone:$('targetReleaseZone').value.trim()
+  };
+}
+function resetReleaseScheduleForm(schedule){
+  $('targetReleaseMode').value = schedule?.mode || 'date';
+  $('targetReleaseTime').value = schedule?.time || '00:00';
+  $('targetReleaseZone').value = schedule?.timeZone || browserReleaseZone;
+  syncReleaseScheduleForm();
+}
+function syncReleaseScheduleForm(){
+  const mode = $('targetReleaseMode').value, timed = mode !== 'date';
+  for(const part of ['Time','Zone']){
+    $(`targetRelease${part}Field`).hidden = !timed;
+    $(`targetRelease${part}`).disabled = !timed;
+    $(`targetRelease${part}`).required = timed;
+  }
+  $('targetReleaseZoneLabel').textContent = mode === 'global' ? 'Time zone of the announced time' : 'Your store region / time zone';
+  $('releaseScheduleNote').textContent = mode === 'date'
+    ? 'Game search provides dates only. Check the publisher or store for your platform\'s unlock schedule.'
+    : mode === 'regional'
+      ? 'Enter the unlock time for your platform and store region. Your browser\'s time zone is selected initially. Check the publisher or store; search does not confirm unlock times.'
+      : 'Enter the announced date, time and time zone. Everyone counts down to that same moment. Check the publisher or store for your platform.';
+  const target = releaseTargetDate({releaseDate:$('targetGameDate').value,releaseSchedule:draftReleaseSchedule()});
+  $('releaseSchedulePreview').textContent = !timed
+    ? 'Time unconfirmed. The countdown uses midnight in your browser\'s time zone as a planning estimate.'
+    : !target ? 'Enter a valid date, time and time zone such as America/Chicago. If a clock change skips or repeats this time, use the equivalent time in UTC.'
+    : `Countdown ends ${target.toLocaleString(undefined,{dateStyle:'full',timeStyle:'long'})} in your local time.`;
+  return target;
+}
 function cancelGameLookup(){
   gameLookupController?.abort();
   gameLookupController = null;
@@ -1654,6 +1711,7 @@ function syncGameTargetForm(){
   $('gameSource').hidden = !gameDraftSource;
   if(gameDraftSource) $('gameSource').href = gameDraftSource;
   $('gameDateNote').textContent = 'Your queue stays in place when you change games.';
+  resetReleaseScheduleForm(SITE_CONFIG.releaseSchedule);
   $('useGame').disabled = false;
 }
 function gameReleaseDates(entity){
@@ -1710,6 +1768,7 @@ async function pickReleaseGame(game){
   gameDraftDate = '';
   $('targetGameName').value = game.label.slice(0, 120);
   $('targetGameDate').value = '';
+  resetReleaseScheduleForm();
   $('gameDatesField').hidden = true;
   $('gameSource').href = gameDraftSource;
   $('gameSource').hidden = false;
@@ -1740,7 +1799,7 @@ async function pickReleaseGame(game){
 }
 function syncUseGameButton(){
   $('useGame').disabled = !$('targetGameName').value.trim() || !$('targetGameDate').validity.valid
-    || !fromDateValue($('targetGameDate').value);
+    || !syncReleaseScheduleForm();
 }
 function useReleaseTarget(target){
   checkpoint('Changed target game');
@@ -1766,8 +1825,13 @@ for(const id of ['targetGameName', 'targetGameDate']) $(id).oninput = () => {
   if(id === 'targetGameName'){
     gameDraftSource = ''; gameDraftDate = '';
     $('gameSource').hidden = $('gameDatesField').hidden = true;
+    resetReleaseScheduleForm();
   }
   $('gameDateNote').textContent = 'Your entered date will be used for the countdown and timeline.';
+  syncUseGameButton();
+};
+for(const id of ['targetReleaseMode','targetReleaseTime','targetReleaseZone']) $(id).oninput = () => {
+  $('gameTargetStatus').textContent = '';
   syncUseGameButton();
 };
 $('gameDates').onchange = () => { $('targetGameDate').value = $('gameDates').value; gameDraftDate = $('gameDates').value; syncUseGameButton(); };
@@ -1776,8 +1840,9 @@ $('gameTargetForm').onsubmit = event => {
   const name = $('targetGameName').value.trim(), date = $('targetGameDate').value;
   const fromSource = !!gameDraftSource && date === gameDraftDate;
   const target = validateReleaseTarget({gameName:name, gameShortName:name, releaseDate:date,
-    dateLabel:fromSource ? 'Wikidata release date' : 'Your planned release date', sourceUrl:gameDraftSource});
-  if(!target){ $('gameTargetStatus').textContent = 'Enter a game title and a valid release date.'; return; }
+    dateLabel:fromSource ? 'Wikidata release date' : 'Your planned release date', sourceUrl:gameDraftSource,
+    ...(draftReleaseSchedule() ? {releaseSchedule:draftReleaseSchedule()} : {})});
+  if(!target){ $('gameTargetStatus').textContent = 'Enter a game title and a valid release date and schedule.'; return; }
   useReleaseTarget(target);
 };
 $('resetGame').onclick = () => useReleaseTarget(DEFAULT_SITE_CONFIG);
@@ -2594,12 +2659,12 @@ function renderWorkspace(context){
   $('quickYoutubeUnit').value = ytUnit;
   $('queueCount').textContent = queue.length;
   $('completedCount').textContent = completed.length;
-  $('releaseCaption').textContent = TARGET.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});
+  $('releaseCaption').textContent = `${formatReleaseDate()}${SITE_CONFIG.releaseSchedule ? ' · your local time' : ' · time unconfirmed'}`;
   $('countdownTitle').textContent = now >= TARGET ? `${SITE_CONFIG.gameShortName}: target reached.` : `Until ${SITE_CONFIG.gameShortName}.`;
   $('overviewHours').textContent = `${num1(totalQueued).toLocaleString()} h`;
   $('overviewItems').textContent = `${queue.length} ${queue.length === 1 ? 'item' : 'items'}`;
   $('overviewPace').textContent = `${num1(plan.pace).toLocaleString()} h`;
-  $('overviewFinish').textContent = !queue.length ? 'Not started' : !Number.isFinite(forecast.finishDay) ? 'No finish yet' : addDays(now,Math.ceil(forecast.finishDay)).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  $('overviewFinish').textContent = !queue.length ? 'Not started' : !Number.isFinite(forecast.finishDay) ? 'No finish yet' : forecastFinishDate(now, forecast.finishDay).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   $('overviewFinishNote').textContent = !queue.length ? 'Add your first item' : forecast.stalled ? 'Adjust your pace' : $('weeks').textContent + ' at this pace';
   const coverage = forecast.capacity > 0 ? Math.max(0,Math.min(1,1-forecast.missingHours / forecast.capacity)) : 0;
   $('coverageFill').value = coverage;
@@ -2611,7 +2676,7 @@ function renderWorkspace(context){
       forecastRowsSig = rowsSig;
       $('forecastList').innerHTML = queue.length ? queue.map((item,index) => {
         const segment = forecast.segments[index];
-        const finish = Number.isFinite(segment?.endDay) ? addDays(now,Math.ceil(segment.endDay)) : null;
+        const finish = Number.isFinite(segment?.endDay) ? forecastFinishDate(now, segment.endDay) : null;
         return `<li>${iconMarkup(KIND_ICON[item.kind] || 'book')}<div><b>${esc(item.name)}</b><small>${esc(item.kind)} · ${fmtHours(item.hours)} remaining${item.estimateNeeded ? ' · estimate needed' : ''}</small></div>${finish ? `<time datetime="${toDateValue(finish)}">${esc(fmtDate(finish))}</time>` : '<span class="note">No finish at this pace</span>'}</li>`;
       }).join('') : '<li class="note">Add your first item to see when each one will finish.</li>';
     }
