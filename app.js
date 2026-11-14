@@ -632,11 +632,12 @@ function announceQueueMove(name, index){
   $('queueStatus').textContent = `${name} moved to position ${index + 1} of ${queue.length}.`;
 }
 
-function moveQueueItem(from, to, {focus = false, announce = true, commit = true} = {}){
+function moveQueueItem(from, to, {focus = false, announce = true, commit = true, recordUndo = commit} = {}){
   if(!Number.isInteger(from) || !Number.isInteger(to) || from === to
     || from < 0 || to < 0 || from >= queue.length || to >= queue.length) return false;
   // Delegated edits resolve the row index, so commit focus before order changes.
   document.activeElement?.blur();
+  if(recordUndo) checkpoint(`Moved ${queue[from].name}`);
   const [item] = queue.splice(from, 1);
   queue.splice(to, 0, item);
   if(commit) commitQueueChange(null, () => {});
@@ -664,7 +665,7 @@ function dragMove(e){
   if(to === dragState.index || to < 0 || to >= queue.length) return;
   const from = dragState.index;
   dragState.index = to;
-  if(moveQueueItem(from, to, {announce:false, commit:false})){
+  if(moveQueueItem(from, to, {announce:false, commit:false, recordUndo:!dragState.moved})){
     dragState.moved = true;
     $('queue').classList.add('is-sorting');
     markDraggedRow();
@@ -1227,7 +1228,7 @@ $('queue').addEventListener('change', event => {
     setShowProgress(index, season, input.hasAttribute('data-show-season') ? 0 : +input.value);
     ($('queue').querySelector(`[data-show-episode="${index}"]`) || $('name')).focus();
   }else if(input.matches('[data-book-progress]')){
-    if(!setBookProgress(index, Number(input.value))) input.value = item.book.progress || 0;
+    if(!input.value.trim() || !setBookProgress(index, Number(input.value))) input.value = item.book.progress || 0;
   }else if(input.matches('[data-youtube-count]')){
     if(!input.value.trim() || !setYoutubeProgress(index, Number(input.value))) input.value = item.youtube.watched;
   }
@@ -2087,6 +2088,7 @@ function catalogIdForPick(pick){
 }
 async function choosePick(pick){
   if(!pick) return;
+  const destinationQueue = queue;
   const typed = $('name').value;
   closeSuggestions();
   searchAbort = null; // Resolving a pick is its own errand; the next search must not kill it.
@@ -2110,6 +2112,7 @@ async function choosePick(pick){
     else if(pick.showId) { show = await showProfile(pick.showId); hours = showRemainingHours(show); known = true; }
     else if(pick.podId){ pod = await podcastProfile(pick.podId); hours = podcastHours(pod); known = true; }
     else if(pick.qid){ const r = await wikidataHours(pick.qid, pick.kind); hours = r.hours; known = r.known; }
+    if(queue !== destinationQueue) return;
     // Missing page data should not make a valid book impossible to add. Two
     // hours is a visible placeholder and the row stays editable.
     if(!known && pick.kind === 'Book') hours = 2;
@@ -2133,6 +2136,7 @@ async function choosePick(pick){
       estimateNoteTimer = setTimeout(() => { note.hidden = true; }, 9000);
     }
   }catch(e){
+    if(queue !== destinationQueue) return;
     // A lookup selected before a new search must not overwrite what the user is
     // typing now. Restore the old query only when the box is still untouched.
     if(!$('name').value){
@@ -2363,6 +2367,7 @@ async function lookupWebNovel(){
   $('webLookupStatus').textContent = 'Looking for the title, chapter total, and word count.';
   const ctrl = new AbortController();
   webLookupController = ctrl;
+  const initialFields = Object.fromEntries(['webTitle','webChapters','webLength','webUnit'].map(id => [id,$(id).value]));
   try{
     let metadata;
     const isFic = ['ao3', 'fanfiction'].includes(webStoryPlatform(url.href));
@@ -2381,13 +2386,13 @@ async function lookupWebNovel(){
     }
     if(request !== webLookupRequest) return;
     const fill = (id, value) => {
-      if(!value) return;
+      if(!value || $(id).value !== initialFields[id]) return;
       $(id).value = value;
       webAutofill[id] = String(value);
     };
     fill('webTitle', metadata.title);
     fill('webChapters', metadata.chapters);
-    if(metadata.words){
+    if(metadata.words && $('webLength').value === initialFields.webLength && $('webUnit').value === initialFields.webUnit){
       fill('webLength', metadata.words);
       $('webUnit').value = 'words';
     }
@@ -2596,6 +2601,7 @@ $('youtubeDirectFileNote').hidden = !(location.protocol === 'file:');
 
 
 $('youtubeAdd').onclick = async () => {
+  const destinationQueue = queue;
   let title = $('youtubeTitle').value.trim();
   const input = addUrlInput($('youtubeUrl').value.trim());
   if(input?.kind !== 'playlist'){
@@ -2619,6 +2625,10 @@ $('youtubeAdd').onclick = async () => {
         ? `Reading video ${done} of ${total}…`
         : `Found ${total} video${total === 1 ? '' : 's'}. Reading runtimes…`;
     });
+    if(queue !== destinationQueue){
+      $('youtubeHelp').textContent = 'Your queue changed while loading. Add this playlist again if you still want it.';
+      return;
+    }
     const normalizedDurations = durations.map(seconds => Math.round(seconds));
     const hours = playlistHours(normalizedDurations);
     if(hours == null || hours > MAX_ITEM_HOURS) throw new Error('The playlist runtime is outside the supported range.');
@@ -2911,7 +2921,7 @@ $('queue').addEventListener('click',event => {
     const index = Number(next.dataset.next), item = queue[index];
     if(!item || index === 0) return;
     checkpoint(`Moved ${item.name} to next`);
-    moveQueueItem(index,0);
+    moveQueueItem(index,0,{recordUndo:false});
     noteUndo(`${item.name} is next.`);
     $('continueProgress')?.focus({preventScroll:true});
   }
