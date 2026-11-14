@@ -29,7 +29,9 @@ runBrowserSuite({}, async ({url, context, page: first}) => {
   assert.equal(await second.locator('#storageNotice').isVisible(), false);
 
   // Both tabs change the queue. The later write is refused and explained.
-  await second.evaluate(() => addToQueue({name:'From second', kind:'Movie', hours:1}));
+  // Hold pending edits until the explicit flush below. A slow runner must not
+  // let the 400 ms autosave finish before the other tab makes its change.
+  await second.evaluate(() => { addToQueue({name:'From second', kind:'Movie', hours:1}); clearTimeout(saveTimer); });
   await first.evaluate(() => { addToQueue({name:'Also first', kind:'Movie', hours:1}); flushSave(); });
   await second.evaluate(() => flushSave());
   await second.locator('#storageNotice').waitFor();
@@ -45,7 +47,7 @@ runBrowserSuite({}, async ({url, context, page: first}) => {
 
   // Keeping this tab's version replaces the save on purpose. The first tab has
   // an unsaved edit by then, so it becomes the stale one.
-  await first.evaluate(() => addToQueue({name:'Lost edit', kind:'Movie', hours:1}));
+  await first.evaluate(() => { addToQueue({name:'Lost edit', kind:'Movie', hours:1}); clearTimeout(saveTimer); });
   await second.locator('#keepTabSave').click();
   await second.waitForFunction(() => /Second again/.test(localStorage.getItem('gta-queue.v1')));
   assert.doesNotMatch(await saved(first), /Also first/);
