@@ -38,6 +38,12 @@ function currentReleaseTarget(){
     ...(releaseSchedule ? {releaseSchedule} : {}), ...(releaseContext ? {releaseContext} : {}),
     ...(releaseEvidence ? {releaseEvidence} : {})};
 }
+function releaseTargetSignature(target){
+  const normalized = validateReleaseTarget(target);
+  // Checking the same source again updates its evidence, not the user's plan.
+  if(normalized?.releaseEvidence) delete normalized.releaseEvidence.checkedAt;
+  return JSON.stringify(normalized);
+}
 function setReleaseTarget(target, {preserveDraft = false} = {}){
   const keepDraft = preserveDraft && targetDraftSignature !== null && gameTargetDraftSignature() !== targetDraftSignature;
   SITE_CONFIG = Object.freeze({...DEFAULT_SITE_CONFIG, ...target});
@@ -1319,9 +1325,9 @@ const STORE_KEY = SITE_CONFIG.storageKey;
 function serializeState(){
   return TimeBridgeCore.serializeState({appName:APP_NAME, target:currentReleaseTarget(), savedAt:new Date(),
     queue, completed, schedule:{scheduleMode:$('scheduleMode').value,
-      sleepStart:$('sleepStart').value, sleepEnd:$('sleepEnd').value, pace:$('paceInput').value,
-      startDate:$('startDate').value, jobHours:$('jobHours').value, jobDate:$('jobStart').value,
-      ytUnit, ytAmount:$('ytAmount').value, grassHours:readGrassHours(), bookPagesPerHour:readBookPace()}});
+      sleepStart:$('sleepStart').value, sleepEnd:$('sleepEnd').value, pace:readSchedule().pace,
+      startDate:toDateValue(startDate()), jobHours:clampNumber($('jobHours').value,0,90,0), jobDate:toDateValue(readJob().date),
+      ytUnit, ytAmount:readYouTube().amount, grassHours:readGrassHours(), bookPagesPerHour:readBookPace()}});
 }
 
 function applyState(parsed, {preserveTargetDraft = false} = {}){
@@ -1464,7 +1470,6 @@ function saveState(note){
 function flushSave(){
   if(!savePending) return;
   clearTimeout(saveTimer);
-  savePending = false;
   if(saveBlocked){
     setSaveStatus('Changes could not be saved locally because an unreadable save could not be copied first. Use Export queue to keep this queue.');
     return;
@@ -1485,6 +1490,8 @@ function flushSave(){
     setSaveStatus('Could not save locally. Use Export queue to keep a copy.');
     return;
   }
+  // A failed write leaves local changes dirty, so another tab cannot replace them.
+  savePending = false;
   let historySaved = false;
   let history = trimUndoStack();
   for(;;){
@@ -1719,7 +1726,7 @@ function applyReleaseLookupOption(option, commit){
   if(commit){
     const target = targetFromReleaseDraft();
     if(!target || saveBlocked || saveConflict) return;
-    checkpoint('Updated release time');
+    if(releaseTargetSignature(target) !== releaseTargetSignature(currentReleaseTarget())) checkpoint('Updated release time');
     setReleaseTarget(target); lastSig = null;
     render({forceQueue:true,animate:false});
     saveState('Updated release time from ' + (option.evidence.provider === 'xbox' ? 'Xbox' : 'the verified schedule'));
