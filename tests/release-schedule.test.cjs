@@ -62,6 +62,9 @@ runBrowserSuite({contextOptions:{reducedMotion:'reduce'}},async({page,url,contex
   assert.equal(await page.locator('#useGame').isDisabled(),true);
   await page.locator('#targetGameDate').fill('2026-09-22');
   await page.locator('#targetReleaseTime').fill('13:00');
+  // The forecast follows the current time. Pin noon before checking exactly
+  // one remaining hour so slower CI runners cannot consume part of it.
+  await page.clock.setFixedTime(new Date('2026-09-22T17:00:00Z'));
   await page.locator('#useGame').click();
   const forecast = await page.evaluate(()=>{
     $('scheduleMode').value='simple'; $('paceInput').value=168; $('ytAmount').value=0;
