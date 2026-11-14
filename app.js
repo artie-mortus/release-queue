@@ -2470,6 +2470,10 @@ function playlistStatus(item){
     : `${Math.floor(minutes / 1440)} day${minutes < 2880 ? '' : 's'} ago`;
   return `Checked ${when}.`;
 }
+function playlistUnavailableNote(durations){
+  const count = durations.unavailableCount || 0;
+  return count ? ` ${count} unavailable video${count === 1 ? ' was' : 's were'} skipped.` : '';
+}
 function setPlaylistFeedback(item, message){
   playlistFeedback.set(item, message);
   const index = queue.indexOf(item);
@@ -2505,8 +2509,7 @@ function refreshYoutubePlaylists({forceItem = null, onProgress = () => {}} = {})
       if(!queue.includes(item)) continue;
       try{
         const durations = await readPlaylistDurations(item.youtube.playlistId, forceItem ? onProgress : () => {}, item.youtube.durations.length);
-        const unavailableNote = durations.unavailableCount
-          ? ` ${durations.unavailableCount} unavailable videos hidden by YouTube were skipped.` : '';
+        const unavailableNote = playlistUnavailableNote(durations);
         const latest = durations.map(seconds => Math.round(seconds));
         if(!queue.includes(item)) continue;
         if(!latest.length || latest.some(seconds => !Number.isInteger(seconds) || seconds <= 0 || seconds > 604800))
@@ -2603,7 +2606,7 @@ $('youtubeAdd').onclick = async () => {
         ...(durations.videoIds ? {videoIds:durations.videoIds} : {}), watched:0, checkedAt:Date.now()}},{onAdded:() => {
       $('youtubeTitle').value = $('youtubeUrl').value = '';
       if(addUrlInput($('name').value.trim())?.url.href === url.href) $('name').value = '';
-      $('youtubeHelp').textContent = `${title} added: ${durations.length} video${durations.length === 1 ? '' : 's'}, ${fmtHours(hours)} total.`;
+      $('youtubeHelp').textContent = `${title} added: ${durations.length} video${durations.length === 1 ? '' : 's'}, ${fmtHours(hours)} total.${playlistUnavailableNote(durations)}`;
       syncAddButton();
     }});
   }catch(error){

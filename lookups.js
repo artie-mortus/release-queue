@@ -722,7 +722,8 @@ async function readYoutubePlaylistDurations(playlistId, onProgress){
     const mount = document.createElement('div');
     holder.append(mount);
     probe.append(holder);
-    let player, videoIds = [], durations = [], index = 0, timer = null, settled = false;
+    let player, videoIds = [], durations = [], playableIds = [], unavailableCount = 0,
+      index = 0, timer = null, settled = false;
 
     const cleanup = () => {
       clearTimeout(timer);
@@ -741,6 +742,18 @@ async function readYoutubePlaylistDurations(playlistId, onProgress){
       clearTimeout(timer);
       timer = setTimeout(() => fail(`Video ${index + 1} did not return a runtime.`), 12000);
       player.cueVideoById(videoIds[index]);
+    };
+    const advance = () => {
+      clearTimeout(timer);
+      index += 1;
+      onProgress(index, videoIds.length);
+      if(index < videoIds.length) return cueCurrent();
+      if(!durations.length) return fail('No playable videos were found in that playlist.');
+      settled = true;
+      cleanup();
+      durations.videoIds = playableIds;
+      if(unavailableCount) durations.unavailableCount = unavailableCount;
+      resolve(durations);
     };
 
     timer = setTimeout(() => fail('The YouTube player did not get ready.'), 15000);
@@ -762,17 +775,20 @@ async function readYoutubePlaylistDurations(playlistId, onProgress){
           if(!Number.isFinite(duration) || duration <= 0){
             return fail(`Video ${index + 1} did not return a runtime.`);
           }
-          clearTimeout(timer);
           durations.push(duration);
-          index += 1;
-          onProgress(index, videoIds.length);
-          if(index < videoIds.length) return cueCurrent();
-          settled = true;
-          cleanup();
-          durations.videoIds = videoIds.slice();
-          resolve(durations);
+          playableIds.push(videoIds[index]);
+          advance();
         },
-        onError(){ fail(`Video ${index + 1} is unavailable or cannot be embedded.`); }
+        onError(event){
+          if(settled) return;
+          // Error 100 confirms a private or removed video. Embed restrictions
+          // and player/network failures do not prove the video is unavailable.
+          if(event.data === 100 && videoIds.length){
+            unavailableCount += 1;
+            return advance();
+          }
+          fail(`Video ${index + 1} could not be checked by the YouTube player.`);
+        }
       }
     });
   });
@@ -821,19 +837,19 @@ async function readDirectFilePlaylistDurations(playlistId, onProgress, minimumCo
   if(!Number.isInteger(videoCount) || videoCount < 1
     || !Number.isInteger(consideredCount) || consideredCount < 1
     || !Number.isInteger(unavailableCount) || unavailableCount < 0
-    || unavailableCount > 0 || consideredCount !== videoCount
+    || consideredCount + unavailableCount !== videoCount
+    || result.isTruncated || result.videos?.length !== videoCount
     || durations.length !== consideredCount
     || durations.some(duration => !Number.isFinite(duration) || duration <= 0)){
-    throw new Error(unavailableCount > 0
-      ? `${unavailableCount} playlist video${unavailableCount === 1 ? ' is' : 's are'} unavailable.`
-      : 'The direct-file playlist service returned incomplete runtimes.');
+    throw new Error('The direct-file playlist service returned incomplete runtimes.');
   }
   if(videoCount < minimumCount){
     throw new Error(`The fallback returned ${videoCount} videos, fewer than the saved ${minimumCount}. The current playlist page could not be verified.`);
   }
-  onProgress(consideredCount, videoCount);
+  onProgress(consideredCount, consideredCount);
   const videoIds = result.videos.filter(video => video?.considered).map(video => video.id || video.videoId);
   if(videoIds.every(id => /^[\w-]{11}$/.test(id || ''))) durations.videoIds = videoIds;
+  if(unavailableCount) durations.unavailableCount = unavailableCount;
   return durations;
 }
 
