@@ -1,5 +1,6 @@
 /* Pure calculation stays separate from DOM rendering. */
 let queue = [], completed = [];
+let targetDraftSignature = null;
 const undoStack = [];
 let dismissedUndoEntry = null;
 const $ = id => document.getElementById(id);
@@ -37,7 +38,8 @@ function currentReleaseTarget(){
     ...(releaseSchedule ? {releaseSchedule} : {}), ...(releaseContext ? {releaseContext} : {}),
     ...(releaseEvidence ? {releaseEvidence} : {})};
 }
-function setReleaseTarget(target){
+function setReleaseTarget(target, {preserveDraft = false} = {}){
+  const keepDraft = preserveDraft && targetDraftSignature !== null && gameTargetDraftSignature() !== targetDraftSignature;
   SITE_CONFIG = Object.freeze({...DEFAULT_SITE_CONFIG, ...target});
   TARGET = releaseTargetDate(SITE_CONFIG);
   document.title = `${APP_NAME} · ${SITE_CONFIG.gameName}`;
@@ -50,7 +52,7 @@ function setReleaseTarget(target){
   $('targetDate').textContent = formatReleaseDate();
   $('selectedGameName').textContent = SITE_CONFIG.gameName;
   scenarioDirty = false;
-  syncGameTargetForm();
+  if(!keepDraft) syncGameTargetForm();
 }
 function formatReleaseDate(target = TARGET){
   return target.toLocaleString(undefined, {month:'long',day:'numeric',year:'numeric',
@@ -1275,6 +1277,7 @@ function focusQueueItem(item){
 function addToQueue({name, hours, kind, ...details}, {allowDuplicate = false, onAdded = null} = {}){
   if(!name || !Number.isFinite(hours) || hours < MIN_ITEM_HOURS || hours > MAX_ITEM_HOURS) return false;
   const item = {name,hours,kind,...details};
+  if(item.pod && !item.pod.asOf) item.pod.asOf = toDateValue(new Date());
   const existing = queue.find(saved => queueItemsMatch(item,saved));
   if(existing && !allowDuplicate){
     duplicateRequests.push({item:structuredClone(item),existing,onAdded});
@@ -1321,9 +1324,9 @@ function serializeState(){
       ytUnit, ytAmount:$('ytAmount').value, grassHours:readGrassHours(), bookPagesPerHour:readBookPace()}});
 }
 
-function applyState(parsed){
+function applyState(parsed, {preserveTargetDraft = false} = {}){
   if(!parsed?.ok) return 0;
-  if(parsed.target) setReleaseTarget(parsed.target);
+  if(parsed.target) setReleaseTarget(parsed.target, {preserveDraft:preserveTargetDraft});
   const state = parsed.schedule;
   $('scheduleMode').value = state.scheduleMode || 'advanced';
   $('paceInput').max = 168;
@@ -1346,6 +1349,8 @@ function applyState(parsed){
   $('ytAmount').value = clampNumber(state.ytAmount, 0, unit === 'week' ? 168 : 24, 0);
   setYtUnit(unit, {renderNow:false});
   queue = parsed.queue;
+  // Legacy podcast saves have no feed date. Anchor them once on restoration.
+  for(const item of [...queue, ...completed]) if(item.pod && !item.pod.asOf) item.pod.asOf = toDateValue(new Date());
   stateRevision++; historyRevision++;
   return queue.length;
 }
@@ -1421,10 +1426,10 @@ function loadUndoHistory(){
   syncUndoStatus();
 }
 // Replaces this tab's queue with the stored one, without saving it back.
-function loadSavedState(text, message){
+function loadSavedState(text, message, options){
   const parsed = parseStateText(text);
   if(!parsed.ok) return setSaveStatus(`The newer save could not be read. ${parsed.error} Use Export queue to keep this tab's queue.`);
-  applyState(parsed);
+  applyState(parsed, options);
   knownSavedText = text;
   saveConflict = false;
   undoNotice = null;
@@ -1441,7 +1446,7 @@ function syncSavedState(){
   const text = readSavedText();
   if(text === null || text === knownSavedText) return;
   if(savePending) return flushSave();
-  loadSavedState(text, 'Loaded changes saved in another tab.');
+  loadSavedState(text, 'Loaded changes saved in another tab.', {preserveTargetDraft:true});
 }
 $('loadNewerSave').onclick = () => loadSavedState(readSavedText(), 'Loaded the newer save.');
 $('keepTabSave').onclick = () => {
@@ -1519,10 +1524,12 @@ function loadState(){
       + (saveBlocked ? 'Autosave is paused so it is not overwritten.' : 'A copy is kept in Settings.'));
     return false;
   }
+  const needsPodcastDate = [...parsed.queue, ...(parsed.completed || [])].some(item => item.pod && !item.pod.asOf);
   const n = applyState(parsed);
   setSaveStatus(n
     ? `Restored ${n} item${n === 1 ? '' : 's'} from your last session.`
     : 'Nothing saved yet.');
+  if(needsPodcastDate) saveState();
   return true;
 }
 
@@ -1793,6 +1800,11 @@ function cancelGameLookup(){
   $('gameSearchButton').textContent = 'Search';
   $('gameResults').removeAttribute('aria-busy');
 }
+function gameTargetDraftSignature(){
+  return JSON.stringify(['gameSearch','targetGameName','targetGameDate','targetReleasePlatform',
+    'targetReleaseMarket','autoReleaseTime','targetReleaseMode','targetReleaseTime','targetReleaseZone']
+    .map(id => $(id).type === 'checkbox' ? $(id).checked : $(id).value));
+}
 function syncGameTargetForm(){
   cancelGameLookup();
   cancelAutoReleaseLookup();
@@ -1817,6 +1829,7 @@ function syncGameTargetForm(){
   $('gameDateNote').textContent = 'Your queue stays in place when you change games.';
   resetReleaseScheduleForm(SITE_CONFIG.releaseSchedule);
   $('useGame').disabled = false;
+  targetDraftSignature = gameTargetDraftSignature();
 }
 function gameReleaseDates(entity){
   const claims = (entity?.claims?.P577 || []).filter(claim => claim.rank !== 'deprecated');

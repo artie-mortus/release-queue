@@ -126,7 +126,7 @@ runBrowserSuite({contextOptions:{reducedMotion:'reduce'}}, async ({url,page}) =>
       const rows=[...$('queue').children];
       setQueueExpanded(false);
       clock+=2*60*1000;
-      candidateCoverage(2); // A late search paint must not use yesterday's podcast hours.
+      candidateCoverage(2); // A late search paint must use the same snapshot-based hours.
       const previewHours=queue[0].hours;
       render({animate:false});
       const after=queue[0].hours;
@@ -142,7 +142,7 @@ runBrowserSuite({contextOptions:{reducedMotion:'reduce'}}, async ({url,page}) =>
         name:$('queue').querySelector('[data-item-index] b').textContent};
     }finally{window.Date=RealDate;}
   });
-  assert.equal(deferred.before-deferred.after,1,'Midnight recalculates podcast growth');
+  assert.equal(deferred.before,deferred.after,'Midnight retains episodes projected from the feed snapshot');
   assert.equal(deferred.previewHours,deferred.after,'Candidate contexts synchronize date-derived items');
   assert.equal(deferred.stayedMounted,true,'Collapsed mutations defer row construction');
   assert.equal(deferred.saved,true);

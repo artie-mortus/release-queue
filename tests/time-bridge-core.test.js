@@ -1102,3 +1102,35 @@ test('catalog episode lists are normalized to what the save loader accepts', () 
   const parsed = roundTrip([{name:'Show',kind:'Show',hours:24.5,show:{episodes,watched:0}}]);
   assert.equal(parsed.ok, true, parsed.error);
 });
+
+
+test('incomplete backups reject partial rows, missing tables and omitted items', () => {
+  const snapshot = {appName:'Release Queue', savedAt:new Date(2026,8,22),
+    target:{gameName:'Example',gameShortName:'Example',releaseDate:'2026-12-01',dateLabel:'Planning date'},
+    schedule:core.parseStateText(portableSave('| First | Movie | 2 | | |')).schedule,
+    queue:[{name:'First',kind:'Movie',hours:2},{name:'Second',kind:'Movie',hours:3}],
+    completed:[{name:'Archived',kind:'Movie',hours:1,completedAt:'2026-09-21'}]};
+  const text = core.serializeState(snapshot);
+  for(const damaged of [
+    text.slice(0,text.indexOf('| Second') + 8),
+    text.slice(0,text.indexOf('## Completed')),
+    text.replace(/^\| Second.*\n/m,''),
+    text.replace(/## Queue[\s\S]*?(?=## Completed)/,'## Queue\n'),
+    text.replace('queue-counts:v1 2 1','queue-counts:v1 broken')
+  ]) assert.equal(core.parseStateText(damaged).ok,false);
+  const legacy = portableSave('| First | Movie | 2 | | |\n| Second');
+  assert.equal(core.parseStateText(legacy).ok,false);
+  assert.equal(core.parseStateText(portableSave('').replace('## Queue\n| Item | Kind | Hours | Detail | Metadata |','## Queue')).ok,false);
+  assert.equal(core.parseStateText(portableSave('| (empty) | | | | |')).ok,true);
+  assert.equal(core.parseStateText(text).ok,true);
+});
+
+test('podcast snapshot dates round-trip and invalid dates reject imports', () => {
+  const detail='eps=10;min=60;wk=1;on=1;pin=0;asof=2026-09-22';
+  const parsed=core.parseStateText(portableSave(`| Podcast | Podcast | 20 | ${detail} | |`));
+  assert.equal(parsed.ok,true);
+  assert.equal(parsed.queue[0].pod.asOf,'2026-09-22');
+  for(const date of ['2026-02-30','bad','']){
+    assert.equal(core.parseStateText(portableSave(`| Podcast | Podcast | 20 | ${detail.replace('2026-09-22',date)} | |`)).ok,false);
+  }
+});

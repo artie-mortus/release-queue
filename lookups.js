@@ -476,12 +476,13 @@ function releaseRate(dates){
   return span > 0 ? (dates.length - 1) / span * 7 : 0;
 }
 
-// Hours a still-running show will add between today and launch day. Fixed on
+// Hours a still-running show will add between its feed snapshot and launch. Fixed on
 // purpose: it counts the calendar, not your progress, so reordering the queue
 // or dragging the pace slider never moves it.
 function podcastAccrual(pod, target = TARGET, now = new Date()){
   if(!pod || !pod.ongoing || !(pod.perWeek > 0)) return 0;
-  const days = Math.max(0, dayNumber(target) - dayNumber(now));
+  const snapshot = fromDateValue(pod.asOf) || now;
+  const days = Math.max(0, dayNumber(target) - dayNumber(snapshot));
   return pod.perWeek * (pod.avgMin / 60) * days / 7;
 }
 const podcastHours = pod => pod.backlog + podcastAccrual(pod);
@@ -534,13 +535,14 @@ async function podcastProfile(collectionId){
   // trackCount is the whole catalogue; the episode list is only a sample of it.
   const count = adjustPodcastCatalogCount(coll.trackCount, episodeRows.length, eps.length, futureCount);
   // Round the average first and derive the backlog from the rounded figure. The
-  // saved file keeps only these four numbers, so a reloaded podcast has to land
+  // saved file keeps the rounded figure, so a reloaded podcast has to land
   // on the same total as a freshly added one.
   const avg = +avgMin.toFixed(1);
   return {
     eps: count,
     avgMin: avg,
     perWeek: +releaseRate(dates).toFixed(2),
+    asOf: toDateValue(new Date(now)),
     ongoing: newest > 0 && (Date.now() - newest) < PODCAST_ONGOING_DAYS * 86400000,
     backlog: +(count * avg / 60).toFixed(1)
   };

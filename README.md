@@ -29,6 +29,10 @@ Then visit [localhost:8000](http://localhost:8000). The app uses plain HTML, CSS
 
 Your queue saves automatically in your browser. In **Settings**, use **Export queue** to download a Markdown backup and **Load file** to restore it. ZIP files containing one Markdown backup are also supported, up to 10 MiB.
 
+New backups record queue and completed-item counts so incomplete files are rejected before replacing your queue. Older backups remain supported.
+
+Podcast projections use the date of their feed snapshot, so new episodes remain in the estimate as time passes. Older podcast saves receive a snapshot date when first restored.
+
 If a saved queue in your browser can't be read, Release Queue keeps a copy before saving anything new. Download it from **Settings**.
 
 Browser storage is separate for each URL. Export and import your queue when moving between a local copy and the published site, or between browsers.

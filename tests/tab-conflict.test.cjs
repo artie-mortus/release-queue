@@ -70,6 +70,35 @@ runBrowserSuite({}, async ({url, context, page: first}) => {
   await second.evaluate(() => flushSave());
   assert.equal(await second.locator('#storageNotice').isVisible(), false);
 
+  // A saved queue can update while the target form contains an unfinished draft.
+  await first.evaluate(() => {
+    useReleaseTarget({...currentReleaseTarget(),gameName:'Remote target',gameShortName:'Remote'});
+    flushSave();
+  });
+  await second.evaluate(() => syncSavedState());
+  assert.equal(await second.locator('#targetGameName').inputValue(),'Remote target');
+  await second.evaluate(() => {
+    $('targetGameName').value='My unsaved target';
+    $('targetGameName').dispatchEvent(new Event('input',{bubbles:true}));
+    $('targetGameDate').value='2030-12-01';
+    $('targetGameDate').dispatchEvent(new Event('input',{bubbles:true}));
+    $('targetReleaseMode').value='global';
+    $('targetReleaseMode').dispatchEvent(new Event('input',{bubbles:true}));
+    $('targetReleaseTime').value='12:30';
+    $('targetReleaseZone').value='UTC';
+  });
+  await first.evaluate(() => { addToQueue({name:'While drafting',kind:'Movie',hours:1}); flushSave(); });
+  await second.evaluate(() => syncSavedState());
+  assert.ok((await names(second)).includes('While drafting'));
+  assert.equal(await second.locator('#targetGameName').inputValue(),'My unsaved target');
+  assert.equal(await second.locator('#targetGameDate').inputValue(),'2030-12-01');
+  assert.equal(await second.locator('#targetReleaseMode').inputValue(),'global');
+  assert.equal(await second.locator('#targetReleaseTime').inputValue(),'12:30');
+  assert.equal(await second.locator('#targetReleaseZone').inputValue(),'UTC');
+  await second.evaluate(() => { useReleaseTarget(targetFromReleaseDraft()); flushSave(); });
+  assert.equal(await second.evaluate(() => SITE_CONFIG.gameName),'My unsaved target');
+  assert.ok((await names(second)).includes('While drafting'));
+
   await second.close();
   assert.deepEqual(errors, []);
   console.log(`PASS two-tab saves ${url.startsWith('file:') ? 'direct file' : 'static HTTP'}`);

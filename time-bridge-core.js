@@ -495,11 +495,14 @@
       return match ? Number(match[1]) : null;
     };
     const eps = get('eps'), avgMin = get('min'), perWeek = get('wk') || 0;
+    const asOf = /(?:^|;)asof=([^;]*)(?:;|$)/.exec(cell)?.[1];
+    if(asOf !== undefined && !validDateValue(asOf)) return null;
     if(!Number.isFinite(eps) || !Number.isFinite(avgMin) || !Number.isFinite(perWeek)
       || eps <= 0 || eps > 1000000 || avgMin <= 0 || avgMin > 1440 || perWeek < 0 || perWeek > 1000)
       return null;
     return {eps, avgMin, perWeek, ongoing:get('on') === 1,
-      pinned:get('pin') === 1, backlog:+(eps * avgMin / 60).toFixed(1)};
+      pinned:get('pin') === 1, backlog:+(eps * avgMin / 60).toFixed(1),
+      ...(asOf === undefined ? {} : {asOf})};
   }
 
   function parseBookCell(cell){
@@ -845,11 +848,11 @@
   // A line break inside a cell would split the row and make the whole save unreadable.
   const escCell = v => String(v).replace(/[\r\n]+/g, ' ').replace(/\|/g, '\\|');
 
-  // A podcast's hours are derived from four numbers, so the four numbers are what
-  // gets saved. Storing only the total would freeze a growing show at whatever it
-  // happened to be the day you closed the tab.
+  // Keep the feed snapshot and its date so projections survive reloads and can
+  // be recalculated when the target changes.
   const podCell = pod => !pod ? '' :
-    `eps=${pod.eps};min=${pod.avgMin};wk=${pod.perWeek};on=${pod.ongoing ? 1 : 0};pin=${pod.pinned ? 1 : 0}`;
+    `eps=${pod.eps};min=${pod.avgMin};wk=${pod.perWeek};on=${pod.ongoing ? 1 : 0};pin=${pod.pinned ? 1 : 0}`
+      + (pod.asOf ? `;asof=${pod.asOf}` : '');
   const bookCell = book => !book ? '' :
     `pages=${book.pages};pph=${book.pagesPerHour};pin=${book.pinned ? 1 : 0}`
       + (book.basis === 'volumes' ? `;basis=volumes;vol=${book.volumes}` : '')
@@ -884,6 +887,7 @@
     return `# ${appName}
 
 <!-- queue-save:v1 -->
+<!-- queue-counts:v1 ${queue.length} ${completed.length} -->
 <!-- queue-target:v1 ${encodeURIComponent(JSON.stringify(target))} -->
 
 Saved ${savedAt.toLocaleString()}. Use Load file in ${appName} to restore this queue and its settings.
@@ -920,12 +924,15 @@ ${stateRows(completed) || '| (empty) | | | | |'}
 
 
   function parseStateRows(section, {archive = false} = {}){
-    if(archive && !/^\|\s*Item\s*\|\s*Kind\s*\|\s*Hours\s*\|/im.test(section))
+    if(!/^\|\s*Item\s*\|\s*Kind\s*\|\s*Hours\s*\|/im.test(section))
       return {ok:false, error:'The queue save is incomplete.'};
     const queue = [];
     for(const line of section.split('\n')){
       const match = line.match(/^\s*\|(.+)\|\s*$/);
-      if(!match) continue;
+      if(!match){
+        if(/^\s*\||\|\s*$/.test(line)) return {ok:false, error:'The queue save contains an incomplete row.'};
+        continue;
+      }
       const cells = match[1].split(/(?<!\\)\|/).map(cell => cell.trim().replace(/\\\|/g, '|'));
       const [name, kind, hours, detail, extra] = cells;
       const isHeader = name === 'Item' && kind === 'Kind' && hours === 'Hours';
@@ -1044,6 +1051,13 @@ ${stateRows(completed) || '| (empty) | | | | |'}
       const archive = parseStateRows(sections.get('completed'), {archive:true});
       if(!archive.ok) return {ok:false, error:'Invalid completed archive: ' + archive.error};
       completed = archive.items;
+    }
+    // Older saves have no counts. New ones must retain both complete tables,
+    // including rows lost at a newline boundary or an omitted archive.
+    if(text.includes('<!-- queue-counts:')){
+      const counts = text.match(/^<!-- queue-counts:v1 (\d+) (\d+) -->\s*$/m);
+      if(!counts || !sections.has('completed') || Number(counts[1]) !== queue.length
+        || Number(counts[2]) !== completed.length) return {ok:false, error:'The queue save is incomplete: item counts do not match.'};
     }
     let target = null;
     const targetMarker = text.match(/<!-- queue-target:v1 ([^\s]+) -->/);
