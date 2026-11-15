@@ -256,19 +256,30 @@ function renderBridge(context){
       + `${leadW > 12 ? `<span>Starts ${esc(fmtDate(start))}</span>` : ''}</div>`
     : '';
 
-  // Where the pace drops, marked so the stretch downstream has a visible cause.
-  const jobX = plan.job.hours && isFinite(plan.jobOff) && plan.jobOff < axisDays ? pct(plan.jobOff) : null;
+  // The job has its own calendar lane, even when the queue starts later.
+  const jobDay = Math.max(SITE_CONFIG.releaseSchedule ? calendarDayFraction(now) : 0, plan.job.startOff);
+  const jobX = plan.job.hours && jobDay < axisDays ? pct(jobDay) : null;
   const jobMark = jobX === null ? '' :
-    `<div class="marker marker--job ${jobX > 88 ? 'marker--end' : jobX < 8 ? 'marker--start' : ''}" style="left:${jobX}%">`
-    + `<span class="flag">Job starts</span></div>`;
+    `<div class="marker marker--job" style="--marker-x:${jobX}%" aria-hidden="true"></div>`;
 
   const relX = pct(daysLeft);
   track.innerHTML = lead + segs + episodeWaitMarkup(forecast,pct)
     + (queue.length ? '' : '<p class="track-empty">Nothing on the timeline yet.</p>')
     + (cursor > daysLeft ? `<div class="overrun" style="left:${relX}%"></div>` : '');
   $('markers').innerHTML = jobMark
-    + `<div class="marker ${relX > 88 ? 'marker--end' : relX < 8 ? 'marker--start' : ''}" style="left:${relX}%"><span class="flag">`
+    + `<div class="marker" style="--marker-x:${relX}%"><span class="flag">`
     + `<svg class="icon" aria-hidden="true"><use href="#i-flag-checkered"/></svg>Release</span></div>`;
+
+  // Work shares the calendar axis but gets its own lane and readable summary.
+  const jobTimeline = $('jobTimeline');
+  jobTimeline.hidden = !plan.job.hours;
+  if(plan.job.hours){
+    const jobDescription = `Job: ${plan.job.hours} h/wk from ${fmtDate(plan.job.date)}. `
+      + `Queue pace: ${num1(plan.paceAfter)} h/wk${plan.paceAfter < plan.pace ? `, down from ${num1(plan.pace)} h/wk` : ''}.`;
+    jobTimeline.innerHTML = `<div class="job-lane" role="img" aria-label="${esc(jobDescription)}">`
+      + (jobX === null ? '' : `<div class="job-band" style="left:${jobX}%"></div>`)
+      + `</div><p>${esc(jobDescription)}${jobX === null ? ' Starts after this timeline.' : ''}</p>`;
+  }else jobTimeline.replaceChildren();
 
   // Month ticks give the axis a real scale rather than an abstract 0-100%.
   const ticks = [`<span class="tick tick--now" style="left:0">Today</span>`];
@@ -390,7 +401,7 @@ function renderScenarios(context){
       + (width > 12 ? `<span>${esc(item.name)}</span>` : '') + '</div>';
   }).join('') + episodeWaitMarkup(forecast,pct) || '<span class="track-empty">Add items to compare coverage.</span>';
   const releaseX = pct(releaseDays);
-  $('scenarioMarkers').innerHTML = `<div class="marker ${releaseX > 88 ? 'marker--end' : ''}" style="left:${releaseX}%"><span class="flag">Preview release</span></div>`;
+  $('scenarioMarkers').innerHTML = `<div class="marker" style="--marker-x:${releaseX}%"><span class="flag">Preview release</span></div>`;
   $('scenarioTimelineLabel').textContent = `Preview timeline at ${pace} h/wk. Release ${fmtDate(target)}.`;
   const variance = Number($('scenarioVariance').value) / 100;
   const variant = factor => forecastItems(items.map(item => ({...item,hours:item.hours * (runtimeCanVary(item) ? factor : 1)})),plan,releaseDays,now,{timeline:false});
@@ -553,9 +564,10 @@ function render({forceQueue = false, preserveQueue = false, animate = true} = {}
       ? `Working from today, so the job ${share} and the queue runs at ${num1(jobPace)} h/wk instead of ${num1(plan.pace)}.`
       : `${num1(plan.pace)} h/wk until ${fmtDate(plan.job.date)}, then ${num1(jobPace)} h/wk once the job ${share}.`;
 
-  $('leadNote').hidden = !leadDays;
-  if(leadDays) $('leadNote').textContent = `Starting ${fmtDate(start)} costs you `
-    + `${leadDays} day${leadDays === 1 ? '' : 's'} of runway before the queue moves at all.`;
+  const delayedDays = Math.max(0, dayNumber(start) - dayNumber(now));
+  $('leadNote').hidden = !delayedDays;
+  if(delayedDays) $('leadNote').textContent = `Starting ${fmtDate(start)} costs you `
+    + `${delayedDays} day${delayedDays === 1 ? '' : 's'} of runway before the queue moves at all.`;
   $('total').textContent = fmtHours(total);
   $('weeks').textContent = !total ? '0 weeks' : stalled ? 'never' : `${weeks.toFixed(1)} weeks`;
   $('finish').textContent = !total ? 'Add a queue' : stalled ? 'never, at this pace' : fmtDate(finish);

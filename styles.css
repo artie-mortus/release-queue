@@ -158,14 +158,19 @@ details[open]>summary::before{transform:rotate(45deg)}
 .overrun{position:absolute;top:0;bottom:0;right:0;background:var(--pos-wash);
   backdrop-filter:brightness(1.06);pointer-events:none}
 .markers{position:absolute;left:0;right:0;top:var(--s6);height:44px;pointer-events:none}
-.marker{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:2}
-.marker .flag{position:absolute;top:-26px;left:50%;transform:translateX(-50%)}
-.marker--end .flag{left:auto;right:0;transform:none}
-.marker--start .flag{left:0;transform:none}
+.marker{position:absolute;inset:0;z-index:2;--marker-color:var(--accent)}
+.marker::before{content:"";position:absolute;top:0;bottom:0;left:var(--marker-x);width:2px;background:var(--marker-color)}
+/* A bounded label box follows its marker without spilling beyond the axis. */
+.marker .flag{position:absolute;top:-26px;width:10em;box-sizing:border-box;
+  left:clamp(0px,calc(var(--marker-x) - 5em),calc(100% - 10em));justify-content:center}
 .marker .flag{
   display:flex;align-items:center;gap:var(--s1);color:var(--accent);
   font-size:10px;letter-spacing:0;text-transform:none;white-space:nowrap}
 .marker .flag .icon{width:14px;height:14px}
+.job-timeline{margin-top:var(--s3)}
+.job-lane{position:relative;height:10px;background:var(--raised);border-radius:var(--r-sm);overflow:hidden}
+.job-band{position:absolute;top:0;bottom:0;right:0;background:var(--muted);opacity:.65;border-left:2px solid var(--text)}
+.job-timeline p{margin:var(--s2) 0 0;color:var(--muted);font-size:12px;line-height:1.6}
 .axis{position:relative;height:var(--s6);margin-top:var(--s2)}
 .tick{position:absolute;top:0;padding-left:var(--s2);border-left:1px solid var(--border);
   color:var(--muted);font-size:10.5px;letter-spacing:0;text-transform:none;height:var(--s5)}
@@ -409,8 +414,7 @@ input[type=range]:focus-visible{outline:2px solid var(--focus);outline-offset:4p
   font-variant-numeric:tabular-nums;text-align:right}
 .job-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:var(--s3)}
 .job-row input{width:100%}
-.marker--job{background:var(--muted);z-index:1}
-.marker--job .flag{color:var(--muted)}
+.marker--job{--marker-color:var(--muted);z-index:1}
 .metrics{margin-top:var(--s6);border-top:1px solid var(--border)}
 .metric{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s4);
   padding:var(--s4) 0;border-bottom:1px solid var(--panel-border)}
