@@ -729,7 +729,7 @@
     if(!date) return null;
     const schedule = target.releaseSchedule;
     if(schedule === undefined) return date;
-    if(!schedule || !['regional','global'].includes(schedule.mode)
+    if(!schedule || !['regional','global','embargo'].includes(schedule.mode)
       || typeof schedule.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time)
       || typeof schedule.timeZone !== 'string' || schedule.timeZone.length > 100
       || !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)*$/.test(schedule.timeZone)) return null;
@@ -891,7 +891,7 @@
 <!-- queue-target:v1 ${encodeURIComponent(JSON.stringify(target))} -->
 
 Saved ${savedAt.toLocaleString()}. Use Load file in ${appName} to restore this queue and its settings.
-Target: ${target.gameName}, ${target.releaseDate}${target.releaseSchedule ? ` at ${target.releaseSchedule.time} ${target.releaseSchedule.timeZone}, ${target.releaseSchedule.mode === 'regional' ? 'regional unlock' : 'worldwide release'}` : ', time unconfirmed'}. Loading this file restores this game and release schedule.
+Target: ${target.gameName}, ${target.releaseDate}${target.releaseSchedule ? ` at ${target.releaseSchedule.time} ${target.releaseSchedule.timeZone}, ${target.releaseSchedule.mode === 'regional' ? 'regional unlock' : target.releaseSchedule.mode === 'embargo' ? 'review embargo' : 'worldwide release'}` : ', time unconfirmed'}. Loading this file restores this game and release schedule.
 ${target.releaseContext ? `Release platform: ${target.releaseContext.platform}. Store country: ${target.releaseContext.market || 'unspecified'}. Automatic lookup: ${target.releaseContext.automatic ? 'on' : 'off'}.\n` : ''}${target.releaseEvidence ? `Release-time source: ${target.releaseEvidence.sourceUrl}. Edition: ${target.releaseEvidence.edition}. Checked: ${target.releaseEvidence.checkedAt}.\n` : ''}
 
 ## Schedule

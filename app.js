@@ -53,7 +53,7 @@ function setReleaseTarget(target, {preserveDraft = false} = {}){
   $('targetLabel').textContent = SITE_CONFIG.releaseEvidence
     ? `${RELEASE_PLATFORMS[SITE_CONFIG.releaseContext.platform]} · ${RELEASE_MARKETS[SITE_CONFIG.releaseContext.market] || 'worldwide'} · ${SITE_CONFIG.releaseEvidence.provider === 'publisher' ? 'publisher schedule' : 'store-listed time'}`
     : SITE_CONFIG.releaseSchedule
-    ? `${SITE_CONFIG.releaseSchedule.mode === 'regional' ? 'Regional unlock' : 'Worldwide release'} · ${SITE_CONFIG.releaseSchedule.timeZone}`
+    ? `${SITE_CONFIG.releaseSchedule.mode === 'regional' ? 'Regional unlock' : SITE_CONFIG.releaseSchedule.mode === 'embargo' ? 'Review embargo' : 'Worldwide release'} · ${SITE_CONFIG.releaseSchedule.timeZone}`
     : `${SITE_CONFIG.dateLabel} · time unconfirmed`;
   $('targetDate').textContent = formatReleaseDate();
   $('selectedGameName').textContent = SITE_CONFIG.gameName;
@@ -1798,14 +1798,17 @@ function syncReleaseScheduleForm(){
     $(`targetRelease${part}`).disabled = !timed;
     $(`targetRelease${part}`).required = timed;
   }
-  $('targetReleaseZoneLabel').textContent = mode === 'global' ? 'Time zone of the announced time' : 'Your store region / time zone';
+  $('targetReleaseZoneLabel').textContent = mode === 'global' ? 'Time zone of the announced time'
+    : mode === 'embargo' ? 'Time zone of the announced embargo' : 'Your store region / time zone';
   $('releaseScheduleNote').textContent = gameDraftEvidence
     ? 'Release time filled from the linked source. Editing the time switches off automatic lookup.'
     : mode === 'date'
     ? 'Automatic lookup checks store unlocks and verified publisher schedules. A release date alone does not confirm a time.'
     : mode === 'regional'
       ? 'Enter the unlock time for your platform and store region. Your browser\'s time zone is selected initially. Check the publisher or store; search does not confirm unlock times.'
-      : 'Enter the announced date, time and time zone. Everyone counts down to that same moment. Check the publisher or store for your platform.';
+      : mode === 'global'
+      ? 'Enter the announced date, time and time zone. Everyone counts down to that same moment. Check the publisher or store for your platform.'
+      : 'Enter the embargo time and time zone on the release date. Reviews unlock for everyone at that moment. Check the publisher\'s press announcement; search does not confirm embargo times.';
   const target = releaseTargetDate({releaseDate:$('targetGameDate').value,releaseSchedule:draftReleaseSchedule()});
   $('releaseSchedulePreview').textContent = !timed
     ? 'Time unconfirmed. The countdown uses midnight in your browser\'s time zone as a planning estimate.'

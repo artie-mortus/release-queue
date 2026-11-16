@@ -96,3 +96,15 @@ Probes used Chromium through Playwright with ordinary `fetch(url, {credentials:"
 3. For PlayStation and other blocked sources, ship a reusable, cited schedule catalog covering multiple games and platforms. Records can express a global instant, a market instant, or an explicitly announced local-time rule. This requires editorial verification, but no runtime backend or user time entry. Bundle it in a classic script for direct-file use, rather than requiring `fetch('./schedules.json')`. Portable file-picker imports can update local data.
 4. Apply local-midnight calculations only when a source explicitly supplies that rule, using the target date's zone offset rather than today's offset. Keep source conflicts visible, including GTA VI's US discrepancy. Do not infer PS5 time from Xbox or a deluxe unlock from standard edition.
 5. When only a date is known, show "Release date known; unlock time unconfirmed" and offer the official store link or an imported schedule. Keep the clock unknown instead of starting a falsely precise countdown. This is the unavoidable coverage limit if the app must stay static and exactness matters.
+
+## Review embargo times: no keyless browser source established
+
+Checked November 15, 2026. Publishers announce review embargos in press releases, press-kit emails, and posts on their own or outlet channels. This is public information, but none of the tested routes exposes it to browser JavaScript without credentials:
+
+| Route | Result |
+| --- | --- |
+| [OpenCritic API](https://api.opencritic.com/api/game/search?criteria=gta) | HTTP 400, "API key is required" with a RapidAPI signup link, on both `api.opencritic.com` and `opencritic.com/api`. The same response carries `access-control-allow-origin: *`, so CORS is not the blocker; the key is. |
+| Wikidata property search for "embargo" | Only [P11140 "embargoed until"](https://www.wikidata.org/wiki/Property:P11140), a qualifier of P953 for academic articles. No game embargo property or structured claims. |
+| [GamesPress](https://www.gamespress.com/?q=embargo) | HTML journalist resource, HTTP 200 without `Access-Control-Allow-Origin`; no verified JSON feed route. Browser fetch would fail CORS. |
+
+Until a supported keyless source appears, the embargo timing mode is manual entry: pick "Review embargo", then enter the announced time and zone on the release date. The form note says lookup does not confirm embargo times.

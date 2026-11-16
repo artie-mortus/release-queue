@@ -30,18 +30,32 @@ runBrowserSuite({contextOptions:{reducedMotion:'reduce'}},async({page,url,contex
   assert.equal(await page.evaluate(()=>TARGET.toISOString()),'2030-06-15T04:00:00.000Z');
   assert.match(await page.locator('#targetLabel').textContent(),/Worldwide release/);
   const worldwideSave = await page.evaluate(()=>serializeState());
+  await page.locator('#targetReleaseMode').selectOption('embargo');
+  await page.locator('#targetReleaseTime').fill('15:00');
+  await page.locator('#targetReleaseZone').fill('Europe/London');
+  assert.match(await page.locator('#targetReleaseZoneLabel').textContent(),/announced embargo/);
+  assert.match(await page.locator('#releaseScheduleNote').textContent(),/embargo/);
+  await page.locator('#useGame').click();
+  assert.equal(await page.evaluate(()=>TARGET.toISOString()),'2030-06-15T14:00:00.000Z');
+  assert.match(await page.locator('#targetLabel').textContent(),/Review embargo/);
+  const embargoSave = await page.evaluate(()=>serializeState());
+  assert.match(embargoSave,/15:00 Europe\/London, review embargo/);
   const otherContext = await context.browser().newContext({timezoneId:'Asia/Tokyo'});
   try{
     await otherContext.route(/^https:\/\//,route=>route.abort());
     const otherPage = await otherContext.newPage();
     await otherPage.goto(url);
-    for(const [portable,mode] of [[worldwideSave,'global'],[save,'regional']]){
+    for(const [portable,mode] of [[worldwideSave,'global'],[save,'regional'],[embargoSave,'embargo']]){
       await otherPage.locator('#importFile').setInputFiles({name:'schedule.md',mimeType:'text/markdown',buffer:Buffer.from(portable)});
       await otherPage.waitForFunction(mode=>SITE_CONFIG.gameName === 'Regional game' && SITE_CONFIG.releaseSchedule.mode === mode,mode);
-      assert.equal(await otherPage.evaluate(()=>TARGET.toISOString()),'2030-06-15T04:00:00.000Z');
-      assert.equal(await otherPage.evaluate(()=>TARGET.getHours()),13);
+      assert.equal(await otherPage.evaluate(()=>TARGET.toISOString()),
+        mode === 'embargo' ? '2030-06-15T14:00:00.000Z' : '2030-06-15T04:00:00.000Z');
+      assert.equal(await otherPage.evaluate(()=>TARGET.getHours()),mode === 'embargo' ? 23 : 13);
     }
   }finally{ await otherContext.close(); }
+  // Two Undos walk back through the embargo and worldwide checkpoints to regional.
+  await page.locator('#undo').click();
+  assert.equal(await page.evaluate(()=>SITE_CONFIG.releaseSchedule.mode),'global');
   await page.locator('#undo').click();
   assert.equal(await page.evaluate(()=>SITE_CONFIG.releaseSchedule.mode),'regional');
   await page.locator('#resetGame').click();
