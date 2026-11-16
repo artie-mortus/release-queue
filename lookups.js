@@ -178,6 +178,26 @@ function publishedReleaseSchedule(name, context){
     sourceUrl:record.sourceUrl,edition:record.edition,sourceField:record.sourceField,checkedAt:record.checkedAt,
     ...(record.note ? {note:record.note} : {})}} : null;
 }
+/* Review embargo announcements have no keyless browser-readable source: the
+   OpenCritic API now requires a RapidAPI key, Wikidata has no game embargo
+   property, and press aggregators send no CORS header. Like the verified
+   release schedules above, the fallback is a small cited catalog bundled at
+   build time. Records carry only what was actually reported; an estimate is
+   labeled as one and never presented as an announced embargo. See
+   docs/release-time-sources.md for the source checks behind this. */
+const REVIEW_EMBARGO_SCHEDULES = [
+  {names:['Grand Theft Auto VI','GTA VI','GTA 6'],status:'Reported, unconfirmed',
+    statusNote:'Reviews are reported for November 18, one day before launch. Rockstar and Take-Two have not confirmed it, and no embargo time has been announced.',
+    sourceUrl:'https://fenixbazaar.com/2026/11/11/gta-6-review-embargo-metacritic/',
+    estimate:{instant:'2026-11-18T14:00:00.000Z',
+      estimateNote:'Estimated review embargo, not an announced one: GTA V and Red Dead Redemption 2 reviews landed one day before release, morning Pacific time. The 14:00 UTC instant carries the same pattern (Game Fan Toolkit comparator).'}},
+];
+function findEmbargoSchedules(name){
+  const key = releaseTitleKey(name);
+  return REVIEW_EMBARGO_SCHEDULES.filter(record => record.names.some(alias => releaseTitleKey(alias) === key))
+    .map(record => ({status:record.status,statusNote:record.statusNote,sourceUrl:record.sourceUrl,
+      instant:record.estimate?.instant,estimateNote:record.estimate?.estimateNote}));
+}
 async function findReleaseSchedules(name, context, signal = null){
   signal?.throwIfAborted();
   const published = publishedReleaseSchedule(name,context);

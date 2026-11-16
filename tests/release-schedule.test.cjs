@@ -6,7 +6,19 @@ runBrowserSuite({contextOptions:{reducedMotion:'reduce'}},async({page,url,contex
   assert.match(await page.locator('#releaseCaption').textContent(),/time unconfirmed/);
   await page.evaluate(()=>addToQueue({name:'Keep my queue',kind:'Movie',hours:10}));
   await goToView(page,'settings');
+  // Embargo lookup: the bundled catalog applies the franchise-pattern estimate
+  // for the default target and labels it as an estimate, not an announced time.
   await page.locator('#gamePicker > summary').click();
+  await page.locator('#targetReleaseMode').selectOption('embargo');
+  await page.locator('#lookupReleaseTime').click();
+  await page.waitForFunction(()=>$('targetReleaseTime').value === '14:00' && $('targetReleaseZone').value === 'UTC');
+  assert.equal(await page.locator('#targetGameDate').inputValue(),'2026-11-18');
+  assert.match(await page.locator('#gameDateNote').textContent(),/Estimated review embargo/);
+  assert.match(await page.locator('#releaseLookupStatus').textContent(),/Reported, unconfirmed/);
+  await page.locator('#useGame').click();
+  assert.equal(await page.evaluate(()=>TARGET.toISOString()),'2026-11-18T14:00:00.000Z');
+  assert.match(await page.locator('#targetLabel').textContent(),/Review embargo/);
+  // Store unlock lookup still answers when the game is not in the embargo catalog.
   await page.locator('#targetGameName').fill('Regional game');
   await page.locator('#targetGameDate').fill('2030-06-15');
   await page.locator('#targetReleaseMode').selectOption('regional');

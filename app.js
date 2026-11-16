@@ -1720,13 +1720,31 @@ function clearDraftReleaseEvidence(){
   $('releaseEditionField').hidden = $('releaseTimeSource').hidden = true;
   $('releaseLookupStatus').textContent = '';
 }
-function targetFromReleaseDraft(){
+function targetFromReleaseDraft(dateLabel){
   const name = $('targetGameName').value.trim(), date = $('targetGameDate').value;
   return validateReleaseTarget({gameName:name,gameShortName:name === SITE_CONFIG.gameName ? SITE_CONFIG.gameShortName : name,releaseDate:date,
-    dateLabel:gameDraftEvidence ? (gameDraftEvidence.provider === 'publisher' ? 'Publisher release schedule' : 'Store-listed release time')
-      : gameDraftSource && date === gameDraftDate ? 'Wikidata release date' : 'Your planned release date',sourceUrl:gameDraftSource,
+    dateLabel:dateLabel || (gameDraftEvidence ? (gameDraftEvidence.provider === 'publisher' ? 'Publisher release schedule' : 'Store-listed release time')
+      : gameDraftSource && date === gameDraftDate ? 'Wikidata release date' : 'Your planned release date'),sourceUrl:gameDraftSource,
     releaseContext:draftReleaseContext(), ...(draftReleaseSchedule() ? {releaseSchedule:draftReleaseSchedule()} : {}),
     ...(gameDraftEvidence ? {releaseEvidence:gameDraftEvidence} : {})});
+}
+function applyEmbargoLookupOption(option, commit){
+  const date = new Date(option.instant);
+  $('targetGameDate').value = date.toISOString().slice(0,10);
+  resetReleaseScheduleForm({mode:'embargo',time:date.toISOString().slice(11,16),timeZone:'UTC'});
+  $('gameDateNote').textContent = option.estimateNote;
+  $('releaseLookupStatus').textContent = `${option.status} · ${option.statusNote}`;
+  $('releaseTimeSource').href = option.sourceUrl;
+  $('releaseTimeSource').hidden = false;
+  syncUseGameButton();
+  if(commit){
+    const target = targetFromReleaseDraft('Estimated review embargo');
+    if(!target || saveBlocked || saveConflict) return;
+    if(releaseTargetSignature(target) !== releaseTargetSignature(currentReleaseTarget())) checkpoint('Updated release time');
+    setReleaseTarget(target); lastSig = null;
+    render({forceQueue:true,animate:false});
+    saveState('Updated release time from the embargo catalog');
+  }
 }
 function applyReleaseLookupOption(option, commit){
   const date = new Date(option.instant);
@@ -1750,6 +1768,18 @@ async function lookupReleaseTime({commit = false} = {}){
   if(!$('autoReleaseTime').checked) return;
   const name = $('targetGameName').value.trim(), context = draftReleaseContext();
   if(!name) return;
+  if($('targetReleaseMode').value === 'embargo'){
+    // The embargo catalog is bundled, so this branch resolves without network.
+    $('releaseEditionField').hidden = true;
+    const [option] = findEmbargoSchedules(name);
+    if(option?.instant) applyEmbargoLookupOption(option,commit);
+    else if(option){
+      $('releaseLookupStatus').textContent = `${option.status} · ${option.statusNote}`;
+      $('releaseTimeSource').href = option.sourceUrl;
+      $('releaseTimeSource').hidden = false;
+    }else $('releaseLookupStatus').textContent = 'No reported review embargo for this game in the bundled catalog. Enter the announced time manually when the publisher confirms it.';
+    return;
+  }
   if(['xbox','ms-pc','ps5'].includes(context.platform) && !context.market){
     $('releaseLookupStatus').textContent = 'Choose your store country to look up its release time.'; return;
   }
@@ -1808,7 +1838,7 @@ function syncReleaseScheduleForm(){
       ? 'Enter the unlock time for your platform and store region. Your browser\'s time zone is selected initially. Check the publisher or store; search does not confirm unlock times.'
       : mode === 'global'
       ? 'Enter the announced date, time and time zone. Everyone counts down to that same moment. Check the publisher or store for your platform.'
-      : 'Enter the embargo time and time zone on the release date. Reviews unlock for everyone at that moment. Check the publisher\'s press announcement; search does not confirm embargo times.';
+      : 'Enter the embargo time and time zone on the release date. Reviews unlock for everyone at that moment. "Look up time" checks the bundled catalog of reported embargos; no live source confirms embargo times.';
   const target = releaseTargetDate({releaseDate:$('targetGameDate').value,releaseSchedule:draftReleaseSchedule()});
   $('releaseSchedulePreview').textContent = !timed
     ? 'Time unconfirmed. The countdown uses midnight in your browser\'s time zone as a planning estimate.'
